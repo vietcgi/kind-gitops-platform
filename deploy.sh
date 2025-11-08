@@ -60,7 +60,7 @@ kind load docker-image kubernetes-platform-stack:latest --name "$CLUSTER_NAME"
 log_info "Installing Cilium CNI..."
 helm repo add cilium https://helm.cilium.io
 helm repo update
-helm install cilium cilium/cilium --version 1.16.5 \
+helm install cilium cilium/cilium --version 1.18.3 \
     --namespace kube-system \
     --set kubeProxyReplacement=true \
     --set k8sServiceHost=kubernetes.default.svc \
