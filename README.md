@@ -1,92 +1,23 @@
 # Kubernetes Platform Stack
 
-[![Platform](https://img.shields.io/badge/Platform-Kubernetes-blue)](https://kubernetes.io/)
-[![License](https://img.shields.io/badge/License-MIT-green)](LICENSE)
-[![CI/CD](https://github.com/vietcgi/kubernetes-platform-stack/actions/workflows/platform.yml/badge.svg)](https://github.com/vietcgi/kubernetes-platform-stack/actions)
+Production Kubernetes platform built with KIND, Cilium, Istio, ArgoCD, and observability stack.
 
-**Enterprise-grade Kubernetes platform demonstration using KIND, Cilium, Istio, ArgoCD, and Crossplane.**
+## What This Is
 
-Perfect showcase for senior platform engineers, SREs, and DevOps architects.
+A working Kubernetes platform that runs entirely in KIND (Kubernetes in Docker). Built to test infrastructure patterns, networking policies, and service mesh configurations without spinning up expensive cloud infrastructure.
 
-## 🎯 What This Is
+Includes:
+- Cilium CNI with eBPF networking and native LoadBalancer
+- Istio for service mesh with mTLS
+- ArgoCD for GitOps
+- Prometheus, Grafana, Loki, Tempo for observability
+- Network policies and security configurations
+- Full CI/CD pipeline in GitHub Actions
 
-A **complete, production-ready Kubernetes platform** running entirely in KIND with:
-
-- ✅ **Cilium CNI** - eBPF-powered networking, LoadBalancer, BGP, WireGuard encryption
-- ✅ **Istio Service Mesh** - mTLS, authorization policies, traffic management
-- ✅ **ArgoCD GitOps** - Declarative application deployment, app-of-apps pattern
-- ✅ **Crossplane** - Infrastructure-as-Code for cloud resources
-- ✅ **Observability Stack** - Prometheus, Grafana, Loki, Tempo, Cilium Hubble
-- ✅ **Network Policies** - Zero-trust security by default
-- ✅ **Load Balancing** - Cilium native LoadBalancer (no MetalLB)
-- ✅ **Automated Testing** - Security, networking, integration, performance
-
-## 🏗️ Architecture
-
-```
-GitHub Actions CI/CD (KIND Cluster)
-        ↓
-┌──────────────────────────────────────┐
-│  Build & Scan Docker Image           │
-│  - Trivy vulnerability scan          │
-│  - Hadolint Dockerfile lint          │
-│  - Container unit tests              │
-└──────────────────────────────────────┘
-        ↓
-┌──────────────────────────────────────┐
-│  Create KIND Cluster                 │
-│  - 1 control plane                   │
-│  - 2 worker nodes                    │
-│  - Port mappings (80, 443, 8080)     │
-└──────────────────────────────────────┘
-        ↓
-┌──────────────────────────────────────┐
-│  Install Core Components             │
-│  - Cilium (CNI + LB + BGP)           │
-│  - Istio (Service Mesh + mTLS)       │
-│  - ArgoCD (GitOps)                   │
-│  - Crossplane (IaC)                  │
-└──────────────────────────────────────┘
-        ↓
-┌──────────────────────────────────────┐
-│  Install Observability Stack         │
-│  - Prometheus (metrics)              │
-│  - Grafana (dashboards)              │
-│  - Loki (logs)                       │
-│  - Tempo (traces)                    │
-│  - Cilium Hubble (network viz)       │
-└──────────────────────────────────────┘
-        ↓
-┌──────────────────────────────────────┐
-│  Deploy Application                  │
-│  - Load image into KIND              │
-│  - Deploy via Helm                   │
-│  - Apply network policies            │
-│  - Apply mTLS configs                │
-└──────────────────────────────────────┘
-        ↓
-┌──────────────────────────────────────┐
-│  Run Test Suite                      │
-│  - Network connectivity              │
-│  - Security policies                 │
-│  - Integration tests                 │
-│  - Performance baseline              │
-└──────────────────────────────────────┘
-```
-
-## 🚀 Quick Start
-
-### Prerequisites
-
-- Docker (for KIND)
-- kubectl
-- helm
-- git
-
-### Local Development
+## Quick Start
 
 ```bash
-# Clone repository
+# Clone and navigate
 git clone git@github.com:vietcgi/kubernetes-platform-stack.git
 cd kubernetes-platform-stack
 
@@ -110,86 +41,45 @@ kubectl create namespace istio-system
 ./bin/istioctl install --set profile=demo -y
 cd ..
 
-# Create app namespace
+# Set up app namespace
 kubectl create namespace app
 kubectl label namespace app istio-injection=enabled
 
-# Deploy application
+# Deploy
 helm install my-app helm/my-app --namespace app --wait
 
-# Verify deployment
+# Check status
 kubectl get pods -n app
 kubectl get svc -n app
 
-# Access application
+# Access the app
 kubectl port-forward -n app svc/my-app 8080:80
 curl http://localhost:8080/health
 ```
 
-## 🔒 Security Features
+## What's Included
 
-- **Zero-Trust Networking** - Default deny all, explicit allow rules
-- **mTLS Encryption** - All service-to-service communication encrypted via Istio
-- **WireGuard Tunnel** - Pod-to-pod encryption via Cilium
-- **Network Policies** - Cilium eBPF-based policy enforcement
-- **Authorization Policies** - Istio fine-grained access control
-- **Vulnerability Scanning** - Trivy image scanning in CI/CD
-- **Infrastructure as Code** - Checkov scanning of manifests
-- **Pod Security Standards** - Non-root, read-only filesystems
+### Networking
+- **Cilium CNI** - Uses eBPF instead of traditional networking. Handles pod-to-pod communication, network policies, and LoadBalancer services.
+- **Network Policies** - Default deny incoming traffic, with explicit allow rules for specific services.
+- **LoadBalancer** - Cilium's native implementation, no need for MetalLB.
 
-## 📊 Observability
+### Service Mesh
+- **Istio** - mTLS between services, traffic policies, authorization rules.
+- **Encryption** - Pod traffic encrypted with WireGuard.
 
-### Metrics (Prometheus)
-```bash
-kubectl port-forward -n monitoring svc/kube-prometheus-stack-prometheus 9090:9090
-# Access: http://localhost:9090
-```
+### Observability
+- **Prometheus** - Scrapes metrics from Cilium, Istio, and application endpoints.
+- **Grafana** - Dashboards for cluster and application metrics.
+- **Loki** - Aggregates logs from all pods.
+- **Tempo** - Traces requests across services.
 
-### Dashboards (Grafana)
-```bash
-kubectl port-forward -n monitoring svc/kube-prometheus-stack-grafana 3000:80
-# Access: http://localhost:3000 (admin/prom-operator)
-```
+### Deployment
+- **Helm Chart** - Standard Helm chart for the application.
+- **Kubernetes Manifests** - Network policies and Istio configurations.
+- **ArgoCD** - Ready to set up GitOps-style deployments.
 
-### Logs (Loki)
-```bash
-kubectl port-forward -n monitoring svc/loki 3100:3100
-# Query: http://localhost:3100
-```
-
-### Traces (Tempo)
-```bash
-kubectl port-forward -n monitoring svc/tempo 3100:3100
-# Query: http://localhost:3100
-```
-
-### Network Observability (Cilium Hubble)
-```bash
-kubectl port-forward -n kube-system svc/hubble-ui 8081:80
-# Access: http://localhost:8081
-```
-
-## 🧪 Testing
-
-The CI/CD pipeline runs **15 stages** of tests:
-
-1. ✅ Code quality scanning
-2. ✅ Docker image vulnerability scanning
-3. ✅ KIND cluster creation
-4. ✅ Cilium connectivity tests
-5. ✅ Network policy enforcement
-6. ✅ Istio mTLS validation
-7. ✅ Load balancer functionality
-8. ✅ BGP configuration
-9. ✅ Authorization policy tests
-10. ✅ Integration test suite
-11. ✅ Security policy tests
-12. ✅ Observability validation
-13. ✅ Performance metrics
-14. ✅ Resource usage analysis
-15. ✅ Overall system health
-
-### Run Tests Locally
+## Running Tests
 
 ```bash
 # Unit tests
@@ -199,118 +89,169 @@ pytest tests/unit/ -v
 pytest tests/integration/ -v
 
 # All tests
-pytest tests/ -v --cov=src
+pytest tests/ -v
 ```
 
-## 📚 Components
+## GitHub Actions Pipeline
 
-| Component | Version | Purpose |
-|-----------|---------|---------|
-| KIND | Latest | Local Kubernetes cluster |
-| Cilium | 1.14+ | CNI, networking, LoadBalancer, BGP |
-| Istio | 1.18+ | Service mesh, mTLS, traffic management |
-| ArgoCD | 2.8+ | GitOps continuous deployment |
-| Crossplane | 1.13+ | Infrastructure automation |
-| Prometheus | 25+ | Metrics collection |
-| Grafana | 10+ | Metrics visualization |
-| Loki | 2.9+ | Log aggregation |
-| Tempo | 2.2+ | Distributed tracing |
+Runs 15 stages:
+1. Code quality checks
+2. Docker image build and scan
+3. KIND cluster creation
+4. Component installation (Cilium, Istio, Prometheus, etc.)
+5. Application deployment
+6. Network connectivity tests
+7. Security policy validation
+8. Integration tests
+9. Observability checks
+10. Performance metrics
 
-## 💰 Cost Analysis
+Takes about 12-15 minutes end-to-end.
 
-| Solution | Monthly Cost | Setup Time | Cluster Time |
-|----------|--------------|-----------|--------------|
-| **This (KIND)** | **$0** | 5 min | 30 sec |
-| EKS with EC2 | $150-200 | 30 min | 15 min |
-| EKS Fargate | $100-150 | 30 min | 10 min |
+## Why KIND Instead of EKS?
 
-## 🎓 For Recruiters
+- **Cost**: Free vs $150-200/month
+- **Speed**: Cluster ready in 30 seconds vs 15 minutes
+- **Reproducibility**: Same setup for everyone
+- **Testing**: Run full platform locally before pushing to prod
 
-This demonstrates:
+The platform works the same way in KIND as it would in production Kubernetes.
 
-- ✅ **Deep Kubernetes knowledge** - Advanced networking, security, observability
-- ✅ **Enterprise architecture** - Multi-component, production-grade platform
-- ✅ **Cloud-native expertise** - Cilium, Istio, ArgoCD, Crossplane
-- ✅ **Security-first mindset** - Zero-trust, encryption, policies
-- ✅ **DevOps maturity** - CI/CD automation, GitOps, comprehensive testing
-- ✅ **Cost optimization** - $0 vs $200+/month with EKS
-- ✅ **Observability** - Complete monitoring, logging, and tracing stack
-- ✅ **Infrastructure-as-Code** - Helm, Kustomize, Crossplane
+## Directory Structure
 
-## 📖 Documentation
+```
+.
+├── .github/workflows/
+│   └── platform.yml              # CI/CD pipeline
+├── helm/my-app/                  # Helm chart for app
+├── k8s/
+│   ├── cilium/                   # Network policies
+│   ├── istio/                    # Service mesh config
+│   ├── argocd/                   # GitOps setup
+│   └── crossplane/               # Infrastructure code
+├── src/app.py                    # Flask application
+├── tests/
+│   ├── unit/                     # Unit tests
+│   └── integration/              # K8s tests
+├── Dockerfile
+├── requirements.txt
+└── README.md
+```
 
-- [Architecture Deep Dive](docs/ARCHITECTURE.md)
-- [Cilium Setup Guide](docs/CILIUM.md)
-- [Istio Configuration](docs/ISTIO.md)
-- [ArgoCD GitOps](docs/ARGOCD.md)
-- [Observability Stack](docs/OBSERVABILITY.md)
-- [Troubleshooting](docs/TROUBLESHOOTING.md)
+## Local Development
 
-## 🛠️ Development
+### Accessing Services
 
-### Adding New Components
+```bash
+# Prometheus
+kubectl port-forward -n monitoring svc/kube-prometheus-stack-prometheus 9090:9090
+# http://localhost:9090
+
+# Grafana
+kubectl port-forward -n monitoring svc/kube-prometheus-stack-grafana 3000:80
+# http://localhost:3000
+
+# Loki
+kubectl port-forward -n monitoring svc/loki 3100:3100
+
+# ArgoCD (if installed)
+kubectl port-forward -n argocd svc/argocd-server 8080:443
+```
+
+### Checking Logs
+
+```bash
+# Application logs
+kubectl logs -n app -l app=my-app -f
+
+# Cilium
+kubectl logs -n kube-system -l k8s-app=cilium -f
+
+# Istio
+kubectl logs -n istio-system -l app=istiod -f
+```
+
+### Debugging Network Policies
+
+```bash
+# See applied policies
+kubectl get ciliumnetworkpolicies -n app
+kubectl describe cnp -n app
+
+# Check connectivity
+kubectl run debug --image=busybox --rm -it --restart=Never -- sh
+# Inside pod: wget -O- http://my-app:8080/health
+```
+
+## Common Tasks
+
+### Add a New Service
 
 1. Create manifests in `k8s/`
-2. Add to Helm chart in `helm/`
-3. Update GitHub Actions workflow
-4. Add tests in `tests/`
-5. Update documentation in `docs/`
+2. Update Helm chart in `helm/my-app/`
+3. Add tests in `tests/`
+4. Commit and push - CI/CD handles the rest
 
-### Project Structure
+### Modify Network Policies
 
-```
-kubernetes-platform-stack/
-├── .github/
-│   └── workflows/
-│       └── platform.yml              # Main CI/CD pipeline
-├── helm/
-│   └── my-app/                       # Application Helm chart
-├── k8s/
-│   ├── cilium/                       # Cilium policies
-│   ├── istio/                        # Istio configs
-│   ├── argocd/                       # ArgoCD apps
-│   └── crossplane/                   # Crossplane resources
-├── src/
-│   └── app.py                        # Flask application
-├── tests/
-│   ├── unit/                         # Unit tests
-│   └── integration/                  # Integration tests
-├── docs/                             # Documentation
-├── Dockerfile                        # Container image
-├── requirements.txt                  # Python dependencies
-└── README.md                         # This file
+Edit `k8s/cilium/network-policies.yaml`, deploy with:
+```bash
+kubectl apply -f k8s/cilium/
 ```
 
-## 🤝 Contributing
+### Update Application
 
-Contributions welcome! Please:
+Change code in `src/app.py`, rebuild Docker image:
+```bash
+docker build -t my-app:latest .
+kind load docker-image my-app:latest
+```
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit changes (`git commit -m 'feat: add amazing feature'`)
-4. Push to branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+## Troubleshooting
 
-## 📝 License
+**Pods not starting**
+```bash
+kubectl describe pod -n app
+kubectl logs -n app <pod-name>
+```
 
-MIT - See [LICENSE](LICENSE) file for details
+**Service not accessible**
+```bash
+kubectl get svc -n app
+kubectl exec -n app <pod> -- curl localhost:8080/health
+```
 
-## 👤 Author
+**Network policies blocking traffic**
+```bash
+# Check policies
+kubectl get networkpolicies -n app
+# Temporarily remove
+kubectl delete networkpolicies --all -n app
+```
 
-**Kevin Vu**
-- Email: vietcgi@gmail.com
-- GitHub: [@vietcgi](https://github.com/vietcgi)
+**Cluster issues**
+```bash
+# Check node status
+kubectl get nodes
+kubectl describe node <node-name>
 
-## 🔗 Related Projects
+# Restart cluster
+kind delete cluster --name platform
+kind create cluster --config .github/kind-config.yaml
+```
 
-- [Cilium](https://cilium.io/) - eBPF-powered networking and security
-- [Istio](https://istio.io/) - Service mesh platform
-- [ArgoCD](https://argo-cd.readthedocs.io/) - GitOps continuous deployment
-- [Crossplane](https://crossplane.io/) - Infrastructure-as-Code
-- [KIND](https://kind.sigs.k8s.io/) - Local Kubernetes cluster in Docker
+## Technologies
 
----
+- **KIND** - Local Kubernetes clusters
+- **Cilium** - Container networking and security
+- **Istio** - Service mesh
+- **ArgoCD** - Continuous deployment
+- **Crossplane** - Infrastructure automation
+- **Prometheus** - Metrics
+- **Grafana** - Dashboards
+- **Loki** - Log aggregation
+- **Tempo** - Tracing
 
-**Built to impress senior engineers and tech recruiters.**
+## License
 
-⭐ If you find this helpful, please star the repository!
+MIT
