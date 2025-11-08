@@ -3,7 +3,8 @@ kind: CiliumLoadBalancerIPPool
 metadata:
   name: default
 spec:
-  # Allocate IPs from this range for LoadBalancer services
-  # For KIND/Docker environments, using IPs that won't conflict
+  # Allocate IPs from Docker bridge network for KIND
+  # 172.18.0.0/16 is KIND's Docker network
+  # Using 172.18.1.0/24 for LoadBalancer services (reachable from host)
   cidrs:
-    - cidr: "172.20.0.0/24"
+    - cidr: "172.18.1.0/24"

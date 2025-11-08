@@ -4,28 +4,54 @@ All platform services are exposed through Kong API Gateway using a unified domai
 
 ## Accessing Services
 
-### Kong LoadBalancer IP
-The Kong API Gateway is exposed via LoadBalancer with EXTERNAL-IP: **172.18.0.2**
+### Kong Endpoint
 
-### Configure Local Hosts File
+Kong API Gateway is exposed via **LoadBalancer** with Cilium L2 announcements:
+- **LoadBalancer IP**: From 172.18.1.0/24 pool (Docker bridge - reachable from host)
+- **Service Type**: LoadBalancer with L2 announcements
+- **Access**: Direct via LoadBalancer IP, no additional port mapping needed
+- **Fallback**: NodePort also available at 172.18.0.2:32438 if needed
+
+### Option 1: NodePort + Hosts File (Direct Access)
 
 Add these entries to your `/etc/hosts` file:
 
 ```bash
-# Kong Ingress Routes (KIND cluster on Docker)
-172.18.0.2 prometheus.demo.local
-172.18.0.2 grafana.demo.local
-172.18.0.2 loki.demo.local
-172.18.0.2 argocd.demo.local
-172.18.0.2 vault.demo.local
-172.18.0.2 harbor.demo.local
-172.18.0.2 jaeger.demo.local
-172.18.0.2 kong-admin.demo.local
+# Kong routes via NodePort
+172.18.0.2:32438 prometheus.demo.local
+172.18.0.2:32438 grafana.demo.local
+172.18.0.2:32438 loki.demo.local
+172.18.0.2:32438 argocd.demo.local
+172.18.0.2:32438 vault.demo.local
+172.18.0.2:32438 harbor.demo.local
+172.18.0.2:32438 jaeger.demo.local
+172.18.0.2:32438 kong-admin.demo.local
 ```
 
-**Note:** The IP `172.18.0.2` is the control plane node IP. If using a different KIND cluster, verify with:
+**Note**: Since `/etc/hosts` doesn't support port syntax, you'll need to use:
 ```bash
-kubectl get nodes -o jsonpath='{.items[0].status.addresses[?(@.type=="InternalIP")].address}'
+# /etc/hosts
+172.18.0.2 prometheus.demo.local
+172.18.0.2 grafana.demo.local
+... (other entries)
+
+# Then access on port 32438:
+http://grafana.demo.local:32438
+```
+
+### Option 2: Port Forward (Simplest for Local Development)
+
+```bash
+kubectl port-forward -n api-gateway svc/kong-kong-proxy 8000:80 8443:443 &
+
+# Then access via localhost:
+http://localhost:8000  (specify Host header or use Kong's request router)
+```
+
+### Option 3: Use curl with Host Headers
+
+```bash
+curl -H "Host: grafana.demo.local" http://172.18.0.2:32438/
 ```
 
 ### Service Endpoints
@@ -60,7 +86,9 @@ kubectl port-forward -n api-gateway svc/kong-kong-proxy 8000:80 &
 - **Ingress Class**: `kong`
 - **Domain Pattern**: `<service>.demo.local`
 - **API Gateway**: Kong (v2.x)
-- **Load Balancer IP**: Pending (see Cilium LoadBalancer setup)
+- **Service Exposure**:
+  - **KIND/Docker**: LoadBalancer with Cilium L2 (172.18.1.x)
+  - **Production**: LoadBalancer with Cilium L2 (your network range)
 
 ## Setting Custom Domain
 

@@ -185,7 +185,26 @@ if [ "$cilium_ready" -eq 0 ]; then
 fi
 sleep 30
 
-# Step 6: Install ArgoCD for GitOps orchestration
+# Step 6: Apply Cilium LoadBalancer configuration (IP pool and L2 announcements)
+log_info "Applying Cilium LoadBalancer configuration..."
+kubectl apply -f "$SCRIPT_DIR/manifests/cilium/lb-pool.yaml" 2>&1 | tail -3
+sleep 2
+kubectl apply -f "$SCRIPT_DIR/manifests/cilium/l2-announcement-policy.yaml" 2>&1 | tail -3
+sleep 5
+
+# Verify LoadBalancer configuration
+lb_pool=$(kubectl get ciliumloadbalancerippools 2>/dev/null | grep "default" | wc -l)
+l2_policy=$(kubectl get ciliuml2announcementpolicies -n kube-system 2>/dev/null | grep "default" | wc -l)
+if [ "$lb_pool" -gt 0 ] && [ "$l2_policy" -gt 0 ]; then
+    log_info "✓ Cilium LoadBalancer configuration applied successfully"
+    log_info "  - CiliumLoadBalancerIPPool: 172.18.1.0/24 (Docker bridge - reachable from host)"
+    log_info "  - L2 Announcement: eth0 (externalIPs + loadBalancerIPs)"
+else
+    log_warn "LoadBalancer configuration may not have been applied correctly"
+fi
+sleep 5
+
+# Step 7: Install ArgoCD for GitOps orchestration
 log_info "Installing ArgoCD (v3.2.0) for GitOps..."
 log_info "Using lightweight installation approach..."
 
@@ -212,14 +231,14 @@ for i in {1..120}; do
 done
 sleep 10
 
-# Step 7: Apply Kyverno CRD compatibility layer (fixes v3.5.2 sanity check failures)
+# Step 8: Apply Kyverno CRD compatibility layer (fixes v3.5.2 sanity check failures)
 log_info "Applying Kyverno CRD compatibility layer..."
 if [ -f "$SCRIPT_DIR/manifests/kyverno/crds-compat.yaml" ]; then
     kubectl apply -f "$SCRIPT_DIR/manifests/kyverno/crds-compat.yaml" 2>&1 | tail -3
     sleep 2
 fi
 
-# Step 8: Apply ApplicationSet to generate all platform applications
+# Step 9: Apply ApplicationSet to generate all platform applications
 log_info "Applying ApplicationSet to generate platform applications..."
 if [ ! -f "$SCRIPT_DIR/argocd/applicationsets/platform-apps.yaml" ]; then
     log_error "ApplicationSet file not found: $SCRIPT_DIR/argocd/applicationsets/platform-apps.yaml"
@@ -228,7 +247,7 @@ fi
 kubectl apply -f "$SCRIPT_DIR/argocd/applicationsets/platform-apps.yaml"
 sleep 10
 
-# Step 9: Wait for all applications to be created by ApplicationSet
+# Step 10: Wait for all applications to be created by ApplicationSet
 log_info "Waiting for ApplicationSet to generate applications..."
 sleep 5
 max_attempts=30
@@ -244,7 +263,7 @@ while [ $attempts -lt $max_attempts ]; do
     ((attempts++))
 done
 
-# Step 10: Wait for all applications to sync
+# Step 11: Wait for all applications to sync
 log_info "Waiting for all applications to sync and become healthy..."
 sleep 10
 
@@ -279,7 +298,7 @@ for app in $all_apps; do
     done
 done
 
-# Step 11: Final verification and summary
+# Step 12: Final verification and summary
 log_info "Verifying all applications are deployed..."
 echo ""
 echo "======================================"
@@ -291,8 +310,12 @@ echo "K8s Version: 1.34.0"
 echo "Status: Running with Cilium + ArgoCD GitOps"
 echo ""
 echo "Deployed Helm Releases (direct installs):"
-echo "- Cilium v1.18.3 (CNI with BGP, kube-proxy replacement)"
+echo "- Cilium v1.18.3 (CNI with kube-proxy replacement, LoadBalancer)"
 echo "- ArgoCD v3.2.0 (GitOps orchestration)"
+echo ""
+echo "Cilium LoadBalancer Configuration:"
+echo "- IP Pool: 172.18.1.0/24 (Docker bridge - reachable from host)"
+echo "- L2 Announcements: eth0 (externalIPs, loadBalancerIPs)"
 echo ""
 echo "ArgoCD-Managed Applications (14 total):"
 kubectl get applications -n argocd --no-headers 2>/dev/null | while read line; do
@@ -340,7 +363,9 @@ echo "Architecture:"
 echo "=================================="
 echo ""
 echo "Infrastructure (Direct Helm):"
-echo "  ├─ Cilium v1.18.3 (BGP, eBPF, kube-proxy replacement)"
+echo "  ├─ Cilium v1.18.3 (eBPF, kube-proxy replacement, L2 LoadBalancer)"
+echo "  │  ├─ LoadBalancer IP Pool: 172.18.1.0/24"
+echo "  │  └─ L2 Announcement: eth0"
 echo "  └─ ArgoCD v3.2.0 (GitOps orchestration)"
 echo ""
 echo "Observability (via ApplicationSet):"
