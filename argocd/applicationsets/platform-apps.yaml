@@ -74,14 +74,6 @@ spec:
         syncPolicy: aggressive
         group: security
 
-      - name: kyverno
-        namespace: kyverno
-        repoURL: https://kyverno.github.io/kyverno
-        chart: kyverno
-        version: "*"
-        syncPolicy: aggressive
-        group: security
-
       - name: sealed-secrets
         namespace: sealed-secrets
         repoURL: https://bitnami-labs.github.io/sealed-secrets
@@ -117,7 +109,18 @@ spec:
         helm:
           releaseName: '{{ .name }}'
           values: |
+            {{ if eq .name "kyverno" }}
+            # Skip CRD installation as they're already present
+            crds:
+              install: false
+            {{ else if eq .name "prometheus" }}
+            # Kube-prometheus-stack needs extra settings for KIND
+            prometheus:
+              prometheusSpec:
+                podMonitorNamespaceSelector: {}
+            {{ else }}
             {}
+            {{ end }}
       destination:
         server: https://kubernetes.default.svc
         namespace: '{{ .namespace }}'
@@ -170,7 +173,6 @@ data:
       - cert-manager
       - vault
       - falco
-      - kyverno
       - sealed-secrets
     governance:
       - gatekeeper
