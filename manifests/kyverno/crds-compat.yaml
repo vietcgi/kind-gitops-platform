@@ -1,0 +1,61 @@
+# Kyverno v3.5.2 CRD compatibility layer
+# These CRDs provide backwards compatibility for the old policy names
+# (policies.kyverno.io and clusterpolicies.kyverno.io) while using the new
+# policy implementation (validatingpolicies, mutatingpolicies, etc.)
+# This allows the admission controller to perform its sanity checks during startup.
+
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: policies.kyverno.io
+spec:
+  group: kyverno.io
+  names:
+    kind: Policy
+    plural: policies
+  scope: Namespaced
+  versions:
+  - name: v1
+    served: true
+    storage: true
+    schema:
+      openAPIV3Schema:
+        type: object
+        properties:
+          apiVersion:
+            type: string
+          kind:
+            type: string
+          metadata:
+            type: object
+          spec:
+            type: object
+            x-kubernetes-preserve-unknown-fields: true
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: clusterpolicies.kyverno.io
+spec:
+  group: kyverno.io
+  names:
+    kind: ClusterPolicy
+    plural: clusterpolicies
+  scope: Cluster
+  versions:
+  - name: v1
+    served: true
+    storage: true
+    schema:
+      openAPIV3Schema:
+        type: object
+        properties:
+          apiVersion:
+            type: string
+          kind:
+            type: string
+          metadata:
+            type: object
+          spec:
+            type: object
+            x-kubernetes-preserve-unknown-fields: true

@@ -212,8 +212,15 @@ for i in {1..120}; do
 done
 sleep 10
 
-# Step 7: Apply ApplicationSet to generate all 14 applications (replaces old argocd/applications/ approach)
-log_info "Applying ApplicationSet to generate all 14 applications..."
+# Step 7: Apply Kyverno CRD compatibility layer (fixes v3.5.2 sanity check failures)
+log_info "Applying Kyverno CRD compatibility layer..."
+if [ -f "$SCRIPT_DIR/manifests/kyverno/crds-compat.yaml" ]; then
+    kubectl apply -f "$SCRIPT_DIR/manifests/kyverno/crds-compat.yaml" 2>&1 | tail -3
+    sleep 2
+fi
+
+# Step 8: Apply ApplicationSet to generate all platform applications
+log_info "Applying ApplicationSet to generate platform applications..."
 if [ ! -f "$SCRIPT_DIR/argocd/applicationsets/platform-apps.yaml" ]; then
     log_error "ApplicationSet file not found: $SCRIPT_DIR/argocd/applicationsets/platform-apps.yaml"
     exit 1
@@ -221,7 +228,7 @@ fi
 kubectl apply -f "$SCRIPT_DIR/argocd/applicationsets/platform-apps.yaml"
 sleep 10
 
-# Step 8: Wait for all applications to be created by ApplicationSet
+# Step 9: Wait for all applications to be created by ApplicationSet
 log_info "Waiting for ApplicationSet to generate applications..."
 sleep 5
 max_attempts=30
@@ -237,7 +244,7 @@ while [ $attempts -lt $max_attempts ]; do
     ((attempts++))
 done
 
-# Step 9: Wait for all applications to sync
+# Step 10: Wait for all applications to sync
 log_info "Waiting for all applications to sync and become healthy..."
 sleep 10
 
@@ -272,7 +279,7 @@ for app in $all_apps; do
     done
 done
 
-# Step 10: Final verification and summary
+# Step 11: Final verification and summary
 log_info "Verifying all applications are deployed..."
 echo ""
 echo "======================================"
