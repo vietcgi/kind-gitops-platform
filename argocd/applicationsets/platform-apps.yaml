@@ -297,13 +297,14 @@ spec:
                   size: 5Gi
             # Harbor ingress for Kong
             expose:
+              type: ingress
               ingress:
-                hosts:
-                  core: harbor.demo.local
-                  notary: harbor-notary.demo.local
                 className: kong
                 annotations:
                   konghq.com/strip-path: "true"
+                hosts:
+                  core: harbor.demo.local
+                  notary: harbor-notary.demo.local
             {{ else if eq .name "vault" }}
             # Vault ingress for Kong
             ui:
