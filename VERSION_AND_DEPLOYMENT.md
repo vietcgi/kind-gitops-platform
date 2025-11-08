@@ -3,8 +3,8 @@
 ## Latest Component Versions
 
 ### Core Kubernetes
-- **Kubernetes**: 1.31.4 (KIND nodes)
-- **KIND**: kindest/node:v1.31.4
+- **Kubernetes**: 1.34.0 (KIND nodes)
+- **KIND**: kindest/node:v1.34.0
 
 ### Application Dependencies
 - **Python**: 3.11
