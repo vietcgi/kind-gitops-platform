@@ -1,0 +1,107 @@
+# HashiCorp Vault Helm Chart Values
+# Secrets management and encryption
+
+vault:
+  enabled: true
+
+  # Image
+  image:
+    repository: hashicorp/vault
+    tag: 1.17.0
+    pullPolicy: IfNotPresent
+
+  # Replicas
+  replicas: 1
+
+  # Server configuration
+  server:
+    enabled: true
+
+    # Data storage
+    dataStorage:
+      enabled: true
+      size: 5Gi
+      storageClass: standard
+
+    # Audit logging
+    auditStorage:
+      enabled: true
+      size: 1Gi
+      storageClass: standard
+
+    # Resource limits
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        cpu: 500m
+        memory: 1Gi
+
+    # Pod security context
+    podSecurityContext:
+      runAsNonRoot: true
+      runAsUser: 100
+
+    securityContext:
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop:
+        - ALL
+      readOnlyRootFilesystem: true
+
+    # Service
+    service:
+      type: ClusterIP
+      port: 8200
+
+    # HA configuration
+    ha:
+      enabled: false
+      replicas: 1
+
+    # TLS
+    tlsDisable: true  # For testing, enable TLS in production
+
+  # UI
+  ui:
+    enabled: true
+    serviceType: ClusterIP
+
+  # Auth methods
+  authMethods:
+    kubernetes:
+      enabled: true
+      path: kubernetes
+    jwt:
+      enabled: false
+
+  # Secrets engines
+  secretsEngines:
+    kv:
+      enabled: true
+      version: 2
+      path: secret
+    pki:
+      enabled: false
+    ssh:
+      enabled: false
+
+  # Policies
+  policies:
+    default:
+      enabled: true
+
+# Service Monitor for Prometheus
+serviceMonitor:
+  enabled: true
+  namespace: monitoring
+  interval: 30s
+
+# RBAC
+rbac:
+  create: true
+
+# High availability
+ha:
+  enabled: false

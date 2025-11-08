@@ -1,0 +1,82 @@
+# Falco Helm Chart Values
+# Runtime security and threat detection
+
+falco:
+  enabled: true
+
+  # Image
+  image:
+    repository: falcosecurity/falco
+    tag: 0.37.0
+    pullPolicy: IfNotPresent
+
+  # Falco as DaemonSet (runs on all nodes)
+  daemonset:
+    enabled: true
+    resources:
+      requests:
+        cpu: 100m
+        memory: 512Mi
+      limits:
+        cpu: 1000m
+        memory: 1024Mi
+
+  # Falco configuration
+  ebpf:
+    enabled: true
+    hostNetwork: true
+
+  # Outputs (where alerts go)
+  outputs:
+    syslog:
+      enabled: false
+    stdout:
+      enabled: true
+    file:
+      enabled: true
+      filename: /var/log/falco/alerts.log
+    grpc:
+      enabled: false
+
+  # Rules
+  rulesFile:
+    enabled: true
+    # Default rules are included
+    rulesUrl: https://download.falcosecurity.org/rules/
+
+  # Custom rules
+  customRules: {}
+
+  # Pod security context
+  podSecurityContext:
+    privileged: true  # Required for eBPF
+    hostNetwork: true
+    hostPID: true
+
+  securityContext:
+    privileged: true
+
+  # Tolerations (run on all nodes including control plane)
+  tolerations:
+  - operator: Exists
+    effect: NoSchedule
+  - operator: Exists
+    effect: NoExecute
+
+  # Node selector
+  nodeSelector: {}
+
+  # Service Monitor for Prometheus
+  serviceMonitor:
+    enabled: true
+    namespace: monitoring
+    interval: 30s
+
+# Falco Sidekick (optional, for alert routing)
+falcoSidekick:
+  enabled: false
+  # Configure outputs like Slack, Kafka, Elasticsearch, etc.
+
+# RBAC
+rbac:
+  create: true

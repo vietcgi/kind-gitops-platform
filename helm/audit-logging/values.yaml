@@ -1,0 +1,78 @@
+# Audit Logging Helm Chart Values
+# Kubernetes API server audit logging configuration
+
+auditLogging:
+  enabled: true
+
+  # Audit log level (Metadata, RequestResponse, Request)
+  level: Metadata
+
+  # Audit policy backend
+  backend:
+    # Use Webhook backend to send logs to external system
+    webhook:
+      enabled: true
+      # clientConfig:
+      #   url: http://audit-logging-webhook:8080/audit
+
+  # Log directory
+  logDir: /var/log/kubernetes/audit
+
+  # Maximum age of audit log files (days)
+  maxAge: 30
+
+  # Maximum backup count
+  maxBackup: 10
+
+  # Maximum size of audit log files (MB)
+  maxSize: 100
+
+  # Audit events to log
+  rules:
+    # Log all requests at Metadata level
+    - level: Metadata
+      omitStages:
+      - RequestReceived
+
+# Webhook backend deployment
+webhook:
+  enabled: true
+
+  # Image
+  image:
+    repository: falcosecurity/falco-exporter
+    tag: latest
+    pullPolicy: IfNotPresent
+
+  # Replicas
+  replicaCount: 1
+
+  # Service
+  service:
+    type: ClusterIP
+    port: 8080
+    targetPort: 8080
+
+  # Resource limits
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
+
+# Storage
+storage:
+  enabled: false
+  size: 10Gi
+  storageClass: standard
+
+# Node selector
+nodeSelector: {}
+
+# Tolerations
+tolerations: []
+
+# Affinity
+affinity: {}

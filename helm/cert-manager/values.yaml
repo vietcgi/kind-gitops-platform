@@ -1,0 +1,127 @@
+# Cert-Manager Helm Chart Values
+# Kubernetes native certificate management
+
+cert-manager:
+  enabled: true
+
+  # Image configuration
+  image:
+    repository: quay.io/jetstack/cert-manager-controller
+    tag: v1.14.0
+    pullPolicy: IfNotPresent
+
+  # Replicas for HA
+  replicaCount: 1
+
+  # Resource requests/limits
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
+
+  # ServiceAccount
+  serviceAccount:
+    create: true
+    name: cert-manager
+
+  # RBAC
+  rbac:
+    create: true
+
+  # Webhook configuration
+  webhook:
+    enabled: true
+    image:
+      repository: quay.io/jetstack/cert-manager-webhook
+      tag: v1.14.0
+    replicaCount: 1
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+      limits:
+        cpu: 100m
+        memory: 256Mi
+
+  # CA Injector
+  cainjector:
+    enabled: true
+    image:
+      repository: quay.io/jetstack/cert-manager-cainjector
+      tag: v1.14.0
+    replicaCount: 1
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+      limits:
+        cpu: 100m
+        memory: 256Mi
+
+  # Security context
+  podSecurityContext:
+    runAsNonRoot: true
+    runAsUser: 1000
+
+  securityContext:
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+      - ALL
+    readOnlyRootFilesystem: true
+
+  # Tolerations
+  tolerations: []
+
+  # Node selector
+  nodeSelector: {}
+
+  # Pod disruption budget
+  podDisruptionBudget:
+    enabled: false
+
+# Issuers configuration (will be created separately)
+issuers:
+  enabled: true
+
+  # Let's Encrypt ACME Issuer
+  letsencrypt:
+    enabled: false  # Enable for public certs with real domains
+    email: admin@example.com
+    staging: true
+
+  # Self-signed Issuer for internal certs
+  selfsigned:
+    enabled: true
+    name: selfsigned-issuer
+
+# ClusterIssuers configuration
+clusterIssuers:
+  enabled: true
+
+  # Self-signed cluster issuer
+  selfsigned:
+    enabled: true
+    name: selfsigned-cluster-issuer
+
+# Certificates (example)
+certificates:
+  enabled: false
+  # Define certificates here if needed
+  # Example: self-signed cert for testing
+
+# Monitoring
+monitoring:
+  enabled: true
+  serviceMonitor:
+    enabled: true
+    namespace: monitoring
+    interval: 30s
+
+# High availability
+ha:
+  enabled: false
+  # Set to true for production with 3+ replicas

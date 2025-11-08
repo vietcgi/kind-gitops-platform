@@ -1,0 +1,88 @@
+# Gatekeeper Helm Chart Values
+# Open Policy Agent (OPA) for policy-as-code enforcement
+
+gatekeeper:
+  enabled: true
+
+  # Image
+  image:
+    repository: openpolicyagent/gatekeeper
+    tag: v3.17.0
+    pullPolicy: IfNotPresent
+
+  # Replicas for HA
+  replicaCount: 1
+
+  # Resource limits
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 1Gi
+
+  # Service account
+  serviceAccount:
+    create: true
+    name: gatekeeper
+
+  # RBAC
+  rbac:
+    create: true
+
+  # Pod security context
+  podSecurityContext:
+    runAsNonRoot: true
+    runAsUser: 1000
+
+  securityContext:
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+      - ALL
+    readOnlyRootFilesystem: true
+
+  # Validating admission webhook
+  validatingAdmissionWebhook:
+    enabled: true
+    failurePolicy: fail
+    timeoutSeconds: 30
+
+  # Audit interval
+  auditInterval: 60
+  auditMatchKindOnly: false
+
+  # Constraint templates
+  constraintTemplates:
+    enabled: true
+
+  # Constraints (example policies)
+  constraints:
+    enabled: true
+    # Define specific constraints separately if needed
+
+  # Service Monitor for Prometheus
+  serviceMonitor:
+    enabled: true
+    namespace: monitoring
+    interval: 30s
+
+  # Node selector
+  nodeSelector: {}
+
+  # Tolerations
+  tolerations: []
+
+  # Affinity
+  affinity: {}
+
+# Pod disruption budget
+podDisruptionBudget:
+  enabled: false
+
+# Example constraint templates (can be defined in templates/)
+constraintTemplates: {}
+
+# Example constraints
+constraints: {}

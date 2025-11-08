@@ -1,0 +1,18 @@
+apiVersion: v2
+name: gatekeeper
+description: A Helm chart for Gatekeeper - Open Policy Agent (OPA) for Kubernetes
+type: application
+version: 1.0.0
+appVersion: "3.17.0"
+keywords:
+  - gatekeeper
+  - opa
+  - policy
+  - compliance
+  - governance
+maintainers:
+  - name: Kubernetes Platform Stack
+dependencies:
+  - name: gatekeeper
+    version: "3.17.0"
+    repository: "https://open-policy-agent.github.io/gatekeeper/charts"

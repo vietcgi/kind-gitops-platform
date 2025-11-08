@@ -1,0 +1,14 @@
+apiVersion: v2
+name: audit-logging
+description: A Helm chart for Kubernetes Audit Logging - API server audit events
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
+keywords:
+  - audit-logging
+  - compliance
+  - logging
+  - governance
+  - kubernetes-audit
+maintainers:
+  - name: Kubernetes Platform Stack

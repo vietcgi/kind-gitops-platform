@@ -1,0 +1,18 @@
+apiVersion: v2
+name: sealed-secrets
+description: A Helm chart for Sealed Secrets - Encrypted secrets in git
+type: application
+version: 1.0.0
+appVersion: "0.25.0"
+keywords:
+  - sealed-secrets
+  - secrets
+  - encryption
+  - gitops
+  - secrets-management
+maintainers:
+  - name: Kubernetes Platform Stack
+dependencies:
+  - name: sealed-secrets
+    version: "2.13.2"
+    repository: "https://charts.bitnami.com/bitnami"

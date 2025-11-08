@@ -1,0 +1,80 @@
+# Sealed Secrets Helm Chart Values
+# Encrypt secrets for safe git storage
+
+sealedSecrets:
+  enabled: true
+
+  # Image
+  image:
+    repository: ghcr.io/sealed-secrets/sealed-secrets-controller
+    tag: v0.25.0
+    pullPolicy: IfNotPresent
+
+  # Replicas
+  replicaCount: 1
+
+  # Resource limits
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
+
+  # Service account
+  serviceAccount:
+    create: true
+    name: sealed-secrets-controller
+
+  # RBAC
+  rbac:
+    create: true
+
+  # Pod security context
+  podSecurityContext:
+    runAsNonRoot: true
+    runAsUser: 1000
+    fsGroup: 1000
+
+  securityContext:
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+      - ALL
+    readOnlyRootFilesystem: true
+
+  # Sealing key rotation
+  keyRotation:
+    enabled: false
+    rotationPeriod: 30d
+
+  # Command line options
+  commandArgs:
+  - --update-status=true
+  - --status-timeout=30s
+
+  # Service
+  service:
+    type: ClusterIP
+    port: 8080
+
+  # Pod disruption budget
+  podDisruptionBudget:
+    enabled: false
+
+  # Node selector
+  nodeSelector: {}
+
+  # Tolerations
+  tolerations: []
+
+# Service Monitor for Prometheus
+serviceMonitor:
+  enabled: true
+  namespace: monitoring
+  interval: 30s
+
+# RBAC
+rbac:
+  create: true
