@@ -1,0 +1,228 @@
+{{- /*
+Enterprise ApplicationSet Template
+Generates all platform applications from a single source of truth
+
+This uses the list generator to create Applications for all platform apps
+with consistent configuration and policies.
+*/ -}}
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: platform-applications
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: platform-applicationset
+    app.kubernetes.io/part-of: argocd
+spec:
+  goTemplate: true
+  generators:
+  # List-based generator using shared app configuration
+  - list:
+      elements:
+      # Infrastructure Apps (aggressive sync)
+      - name: cilium
+        namespace: kube-system
+        path: helm/cilium
+        syncPolicy: aggressive
+        group: infrastructure
+      - name: argocd
+        namespace: argocd
+        path: helm/argocd
+        syncPolicy: conservative
+        group: infrastructure
+
+      # Observability Stack (aggressive sync)
+      - name: prometheus
+        namespace: monitoring
+        path: helm/prometheus
+        syncPolicy: aggressive
+        group: observability
+      - name: loki
+        namespace: monitoring
+        path: helm/loki
+        syncPolicy: aggressive
+        group: observability
+      - name: tempo
+        namespace: monitoring
+        path: helm/tempo
+        syncPolicy: aggressive
+        group: observability
+
+      # Service Mesh (conservative sync - requires webhooks to be ready)
+      - name: istio
+        namespace: istio-system
+        path: helm/istio
+        syncPolicy: conservative
+        group: service_mesh
+
+      # Security Layer (aggressive sync)
+      - name: cert-manager
+        namespace: cert-manager
+        path: helm/cert-manager
+        syncPolicy: aggressive
+        group: security
+      - name: vault
+        namespace: vault
+        path: helm/vault
+        syncPolicy: aggressive
+        group: security
+      - name: falco
+        namespace: falco
+        path: helm/falco
+        syncPolicy: aggressive
+        group: security
+      - name: kyverno
+        namespace: kyverno
+        path: helm/kyverno
+        syncPolicy: aggressive
+        group: security
+      - name: sealed-secrets
+        namespace: sealed-secrets
+        path: helm/sealed-secrets
+        syncPolicy: aggressive
+        group: security
+
+      # Governance Layer (aggressive sync)
+      - name: gatekeeper
+        namespace: gatekeeper-system
+        path: helm/gatekeeper
+        syncPolicy: aggressive
+        group: governance
+      - name: audit-logging
+        namespace: audit-logging
+        path: helm/audit-logging
+        syncPolicy: aggressive
+        group: governance
+
+      # Applications (conservative sync)
+      - name: my-app
+        namespace: app
+        path: helm/my-app
+        syncPolicy: conservative
+        group: applications
+
+  template:
+    apiVersion: argoproj.io/v1alpha1
+    kind: Application
+    metadata:
+      name: '{{ .name }}'
+      namespace: argocd
+      labels:
+        app.kubernetes.io/name: '{{ .name }}'
+        app.kubernetes.io/group: '{{ .group }}'
+        app.kubernetes.io/managed-by: applicationset
+      finalizers:
+        - resources-finalizer.argocd.argoproj.io
+    spec:
+      project: default
+
+      source:
+        repoURL: https://github.com/vietcgi/kubernetes-platform-stack
+        targetRevision: main
+        path: '{{ .path }}'
+
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: '{{ .namespace }}'
+
+      # Dynamic sync policy based on app type
+      syncPolicy:
+        {{- if eq .syncPolicy "aggressive" }}
+        automated:
+          prune: true
+          selfHeal: true
+        {{- else if eq .syncPolicy "conservative" }}
+        automated:
+          prune: false
+          selfHeal: true
+        {{- else }}
+        # Manual sync
+        {{- end }}
+
+        syncOptions:
+          - CreateNamespace=true
+          - RespectIgnoreDifferences=true
+
+        retry:
+          limit: 5
+          backoff:
+            duration: 5s
+            factor: 2
+            maxDuration: 3m
+
+        revisionHistoryLimit: 10
+
+      # Handle CRD conversion fields
+      ignoreDifferences:
+        - group: apiextensions.k8s.io
+          kind: CustomResourceDefinition
+          jsonPointers:
+            - /spec/conversion
+        - group: apiextensions.k8s.io
+          kind: CustomResourceDefinition
+          jsonPointers:
+            - /status
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: applicationset-defaults
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: applicationset-defaults
+data:
+  # Sync policies configuration
+  sync-policies: |
+    aggressive:
+      automated:
+        prune: true
+        selfHeal: true
+      syncOptions:
+        - CreateNamespace=true
+        - RespectIgnoreDifferences=true
+      revisionHistoryLimit: 10
+
+    conservative:
+      automated:
+        prune: false
+        selfHeal: true
+      syncOptions:
+        - CreateNamespace=true
+      revisionHistoryLimit: 10
+
+    manual:
+      syncOptions:
+        - CreateNamespace=true
+      revisionHistoryLimit: 10
+
+  # Retry policy configuration
+  retry-policy: |
+    limit: 5
+    backoff:
+      duration: 5s
+      factor: 2
+      maxDuration: 3m
+
+  # Platform apps inventory
+  platform-apps: |
+    infrastructure:
+      - cilium
+      - argocd
+    observability:
+      - prometheus
+      - loki
+      - tempo
+    service_mesh:
+      - istio
+    security:
+      - cert-manager
+      - vault
+      - falco
+      - kyverno
+      - sealed-secrets
+    governance:
+      - gatekeeper
+      - audit-logging
+    applications:
+      - my-app

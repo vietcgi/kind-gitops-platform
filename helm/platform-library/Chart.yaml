@@ -1,0 +1,12 @@
+apiVersion: v2
+name: platform-library
+description: Shared library chart for Kubernetes Platform Stack - DRY templates and helpers
+type: library
+version: 1.0.0
+keywords:
+  - library
+  - templates
+  - shared
+  - platform
+maintainers:
+  - name: Kubernetes Platform Stack
