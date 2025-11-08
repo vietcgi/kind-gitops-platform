@@ -194,11 +194,41 @@ spec:
             prometheus:
               prometheusSpec:
                 podMonitorNamespaceSelector: {}
+              # Prometheus ingress for Kong
+              ingress:
+                enabled: true
+                ingressClassName: kong
+                annotations:
+                  konghq.com/strip-path: "true"
+                hosts:
+                  - prometheus.demo.local
+                paths:
+                  - /
+            # Grafana ingress for Kong (part of kube-prometheus-stack)
+            grafana:
+              ingress:
+                enabled: true
+                ingressClassName: kong
+                annotations:
+                  konghq.com/strip-path: "true"
+                hosts:
+                  - grafana.demo.local
+                path: /
             {{ else if eq .name "external-dns" }}
             # External DNS for automatic DNS record management
             policy: sync
             registry: txt
             txtOwnerId: external-dns
+            {{ else if eq .name "loki" }}
+            # Loki ingress for Kong
+            loki:
+              ingress:
+                enabled: true
+                ingressClassName: kong
+                annotations:
+                  konghq.com/strip-path: "true"
+                hosts:
+                  - loki.demo.local
             {{ else if eq .name "longhorn" }}
             # Longhorn persistent storage
             persistence:
@@ -231,6 +261,14 @@ spec:
             query:
               service:
                 type: LoadBalancer
+              # Jaeger query ingress for Kong
+              ingress:
+                enabled: true
+                ingressClassName: kong
+                annotations:
+                  konghq.com/strip-path: "true"
+                hosts:
+                  - jaeger.demo.local
             {{ else if eq .name "kong" }}
             # Kong API Gateway with LoadBalancer and hostNetwork for KIND port access
             admin:
@@ -257,6 +295,30 @@ spec:
               persistentVolumeClaim:
                 registry:
                   size: 5Gi
+            # Harbor ingress for Kong
+            expose:
+              ingress:
+                hosts:
+                  core: harbor.demo.local
+                  notary: harbor-notary.demo.local
+                className: kong
+                annotations:
+                  konghq.com/strip-path: "true"
+            {{ else if eq .name "vault" }}
+            # Vault ingress for Kong
+            ui:
+              enabled: true
+            server:
+              ingress:
+                enabled: true
+                ingressClassName: kong
+                annotations:
+                  konghq.com/strip-path: "true"
+                hosts:
+                  - host: vault.demo.local
+                    paths:
+                      - path: /
+                        pathType: Prefix
             {{ else }}
             {}
             {{ end }}
