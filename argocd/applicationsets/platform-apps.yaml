@@ -99,6 +99,66 @@ spec:
         syncPolicy: aggressive
         group: governance
 
+      # Enterprise Features - Ingress & API Management
+      - name: ingress-nginx
+        namespace: ingress-nginx
+        repoURL: https://kubernetes.github.io/ingress-nginx
+        chart: ingress-nginx
+        version: "*"
+        syncPolicy: aggressive
+        group: infrastructure
+
+      - name: external-dns
+        namespace: external-dns
+        repoURL: https://kubernetes-sigs.github.io/external-dns/
+        chart: external-dns
+        version: "*"
+        syncPolicy: aggressive
+        group: infrastructure
+
+      - name: kong
+        namespace: api-gateway
+        repoURL: https://charts.konghq.com
+        chart: kong
+        version: "*"
+        syncPolicy: aggressive
+        group: infrastructure
+
+      # Enterprise Features - Storage & Backup
+      - name: longhorn
+        namespace: longhorn-system
+        repoURL: https://charts.longhorn.io
+        chart: longhorn
+        version: "*"
+        syncPolicy: aggressive
+        group: infrastructure
+
+      - name: velero
+        namespace: velero
+        repoURL: https://vmware-tanzu.github.io/helm-charts
+        chart: velero
+        version: "*"
+        syncPolicy: aggressive
+        group: infrastructure
+
+      # Enterprise Features - Advanced Observability
+      - name: jaeger
+        namespace: tracing
+        repoURL: https://jaegertracing.github.io/helm-charts
+        chart: jaeger
+        version: "*"
+        syncPolicy: aggressive
+        group: observability
+
+      # Enterprise Features - Container Registry
+      - name: harbor
+        namespace: harbor
+        repoURL: https://helm.goharbor.io
+        chart: harbor
+        version: "*"
+        syncPolicy: aggressive
+        group: infrastructure
+
   template:
     metadata:
       name: '{{ .name }}'
@@ -126,6 +186,58 @@ spec:
             prometheus:
               prometheusSpec:
                 podMonitorNamespaceSelector: {}
+            {{ else if eq .name "ingress-nginx" }}
+            # Nginx ingress controller configuration
+            controller:
+              service:
+                type: LoadBalancer
+              metrics:
+                enabled: true
+              ingressClass: nginx
+            {{ else if eq .name "external-dns" }}
+            # External DNS for automatic DNS record management
+            policy: sync
+            registry: txt
+            txtOwnerId: external-dns
+            {{ else if eq .name "longhorn" }}
+            # Longhorn persistent storage
+            persistence:
+              defaultClassReplicaCount: 3
+            defaultSettings:
+              backupTarget: ""
+              backupTargetCredentialSecret: ""
+            {{ else if eq .name "velero" }}
+            # Velero backup and disaster recovery
+            configuration:
+              backupStorageLocation:
+                name: default
+                provider: aws
+                bucket: velero-backups
+              schedules:
+                daily:
+                  schedule: "0 2 * * *"
+                  template:
+                    ttl: "720h"
+            {{ else if eq .name "jaeger" }}
+            # Jaeger distributed tracing
+            provisionDataStore:
+              cassandra: true
+            {{ else if eq .name "kong" }}
+            # Kong API Gateway
+            admin:
+              enabled: true
+              service:
+                type: LoadBalancer
+            proxy:
+              service:
+                type: LoadBalancer
+            {{ else if eq .name "harbor" }}
+            # Harbor container registry
+            persistence:
+              enabled: true
+              persistentVolumeClaim:
+                registry:
+                  size: 5Gi
             {{ else }}
             {}
             {{ end }}
@@ -171,10 +283,18 @@ metadata:
 data:
   # Platform applications inventory
   platform-apps: |
+    infrastructure:
+      - ingress-nginx
+      - external-dns
+      - kong
+      - longhorn
+      - velero
+      - harbor
     observability:
       - prometheus
       - loki
       - tempo
+      - jaeger
     service_mesh:
       - istio
     security:
