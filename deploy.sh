@@ -159,12 +159,12 @@ log_info "Waiting for Cilium to be ready (this may take 5-10 minutes)..."
 cilium_ready=0
 for i in {1..180}; do
     # Check for running Cilium pods
-    cilium_pods=$(kubectl get pods -n kube-system -l k8s-app=cilium --field-selector=status.phase=Running 2>/dev/null | tail -n +2 | wc -l)
+    cilium_pods=$(kubectl get pods -n kube-system -l k8s-app=cilium --field-selector=status.phase=Running 2>/dev/null | tail -n +2 | wc -l | xargs)
 
     # Verify all nodes are Ready (critical for kube-proxy replacement validation)
     if [ "$cilium_pods" -gt 0 ]; then
-        ready_nodes=$(kubectl get nodes --no-headers 2>/dev/null | grep -c " Ready " || echo "0")
-        node_count=$(kubectl get nodes --no-headers 2>/dev/null | wc -l | tr -d ' ')
+        ready_nodes=$(kubectl get nodes --no-headers 2>/dev/null | grep -c " Ready " | xargs)
+        node_count=$(kubectl get nodes --no-headers 2>/dev/null | wc -l | xargs)
 
         # Check if nodes are fully ready and kube-proxy mode is correctly set to none
         if [ -n "$node_count" ] && [ "$node_count" -gt 0 ] && [ "$ready_nodes" -eq "$node_count" ]; then
