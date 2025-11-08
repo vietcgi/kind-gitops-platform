@@ -187,3 +187,9 @@ data:
         reload
         loadbalance
     }
+    demo.local:53 {
+        errors
+        health
+        log . stdout
+        whoami
+    }
