@@ -1,7 +1,6 @@
 # Enterprise ApplicationSet Template
 # Generates all platform applications from a single source of truth
-# This uses the list generator to create Applications for all platform apps
-# with consistent configuration and policies.
+# Uses Helm repositories as the source for all applications
 apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
 metadata:
@@ -16,87 +15,89 @@ spec:
   # List-based generator using shared app configuration
   - list:
       elements:
-      # Infrastructure Apps (aggressive sync)
-      - name: cilium
-        namespace: kube-system
-        path: helm/cilium
-        syncPolicy: aggressive
-        group: infrastructure
-      - name: argocd
-        namespace: argocd
-        path: helm/argocd
-        syncPolicy: conservative
-        group: infrastructure
-
-      # Observability Stack (aggressive sync)
+      # Observability Stack
       - name: prometheus
         namespace: monitoring
-        path: helm/prometheus
-        syncPolicy: aggressive
-        group: observability
-      - name: loki
-        namespace: monitoring
-        path: helm/loki
-        syncPolicy: aggressive
-        group: observability
-      - name: tempo
-        namespace: monitoring
-        path: helm/tempo
+        repoURL: https://prometheus-community.github.io/helm-charts
+        chart: kube-prometheus-stack
+        version: "55.0.0"
         syncPolicy: aggressive
         group: observability
 
-      # Service Mesh (conservative sync - requires webhooks to be ready)
+      - name: loki
+        namespace: monitoring
+        repoURL: https://grafana.github.io/helm-charts
+        chart: loki-stack
+        version: "2.9.0"
+        syncPolicy: aggressive
+        group: observability
+
+      - name: tempo
+        namespace: monitoring
+        repoURL: https://grafana.github.io/helm-charts
+        chart: tempo
+        version: "1.6.0"
+        syncPolicy: aggressive
+        group: observability
+
+      # Service Mesh
       - name: istio
         namespace: istio-system
-        path: helm/istio
+        repoURL: https://istio-release.storage.googleapis.com/charts
+        chart: istiod
+        version: "1.28.0"
         syncPolicy: conservative
         group: service_mesh
 
-      # Security Layer (aggressive sync)
+      # Security Layer
       - name: cert-manager
         namespace: cert-manager
-        path: helm/cert-manager
+        repoURL: https://charts.jetstack.io
+        chart: cert-manager
+        version: "1.14.0"
         syncPolicy: aggressive
         group: security
+
       - name: vault
         namespace: vault
-        path: helm/vault
+        repoURL: https://helm.releases.hashicorp.com
+        chart: vault
+        version: "0.27.0"
         syncPolicy: aggressive
         group: security
+
       - name: falco
         namespace: falco
-        path: helm/falco
+        repoURL: https://falcosecurity.github.io/charts
+        chart: falco
+        version: "0.37.0"
         syncPolicy: aggressive
         group: security
+
       - name: kyverno
         namespace: kyverno
-        path: helm/kyverno
+        repoURL: https://kyverno.github.io/kyverno
+        chart: kyverno
+        version: "1.12.0"
         syncPolicy: aggressive
         group: security
+
       - name: sealed-secrets
         namespace: sealed-secrets
-        path: helm/sealed-secrets
+        repoURL: https://bitnami-labs.github.io/sealed-secrets
+        chart: sealed-secrets
+        version: "0.25.0"
         syncPolicy: aggressive
         group: security
 
-      # Governance Layer (aggressive sync)
+      # Governance Layer
       - name: gatekeeper
         namespace: gatekeeper-system
-        path: helm/gatekeeper
+        repoURL: https://open-policy-agent.github.io/gatekeeper/charts
+        chart: gatekeeper
+        version: "3.17.0"
         syncPolicy: aggressive
         group: governance
-      - name: audit-logging
-        namespace: audit-logging
-        path: helm/audit-logging
-        syncPolicy: aggressive
-        group: governance
-
-      # Applications (conservative sync)
-      - name: my-app
-        namespace: app
-        path: helm/my-app
-        syncPolicy: conservative
-        group: applications
 
   template:
     metadata:
@@ -110,9 +111,13 @@ spec:
     spec:
       project: default
       source:
-        repoURL: https://github.com/vietcgi/kubernetes-platform-stack
-        targetRevision: main
-        path: '{{ .path }}'
+        repoURL: '{{ .repoURL }}'
+        chart: '{{ .chart }}'
+        targetRevision: '{{ .version }}'
+        helm:
+          releaseName: '{{ .name }}'
+          values: |
+            {}
       destination:
         server: https://kubernetes.default.svc
         namespace: '{{ .namespace }}'
@@ -153,43 +158,8 @@ metadata:
   labels:
     app.kubernetes.io/name: applicationset-defaults
 data:
-  # Sync policies configuration
-  sync-policies: |
-    aggressive:
-      automated:
-        prune: true
-        selfHeal: true
-      syncOptions:
-        - CreateNamespace=true
-        - RespectIgnoreDifferences=true
-      revisionHistoryLimit: 10
-
-    conservative:
-      automated:
-        prune: false
-        selfHeal: true
-      syncOptions:
-        - CreateNamespace=true
-      revisionHistoryLimit: 10
-
-    manual:
-      syncOptions:
-        - CreateNamespace=true
-      revisionHistoryLimit: 10
-
-  # Retry policy configuration
-  retry-policy: |
-    limit: 5
-    backoff:
-      duration: 5s
-      factor: 2
-      maxDuration: 3m
-
-  # Platform apps inventory
+  # Platform applications inventory
   platform-apps: |
-    infrastructure:
-      - cilium
-      - argocd
     observability:
       - prometheus
       - loki
@@ -204,6 +174,3 @@ data:
       - sealed-secrets
     governance:
       - gatekeeper
-      - audit-logging
-    applications:
-      - my-app
