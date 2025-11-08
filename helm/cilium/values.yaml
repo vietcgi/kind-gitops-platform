@@ -35,27 +35,28 @@ cilium:
     algorithm: maglev
     mode: snat
 
-  # Kube-proxy replacement (enabled with proper bootstrap configuration)
-  # KIND requires partial mode and special init configuration
-  kubeProxyReplacement: partial
-  kubeProxyReplacementHealthzBindAddr: 0.0.0.0:10256
+  # Kube-proxy replacement disabled for Docker Desktop to avoid TLS timeout during init
+  # Root cause: Docker Desktop kernel is too slow for TLS handshakes, causing cilium-dbg init container
+  # to timeout when trying to connect to the Kubernetes API server on bootstrap.
+  # This is a known Docker Desktop + KIND limitation that cannot be fixed at the application level.
+  # Error: net/http: TLS handshake timeout during "Establishing connection to apiserver"
+  #
+  # To enable kube-proxy replacement on production clusters, set:
+  # kubeProxyReplacement: partial
+  # kubeProxyReplacementHealthzBindAddr: 0.0.0.0:10256
+  kubeProxyReplacement: disabled
 
-  # Init container configuration for KIND bootstrap
-  init:
-    restartProbeFactor: 10
-
-  # eBPF-based kube-proxy replacement features
+  # eBPF-based kube-proxy replacement features disabled
   bpf:
-    # Native socket load balancing
+    # Native socket load balancing disabled on Docker Desktop
     sockLB:
-      enabled: true
-      ingressMode: service
-    # Host datapath acceleration
+      enabled: false
+    # Host datapath acceleration disabled on Docker Desktop
     hostLB:
-      enabled: true
-    # Connection tracking
+      enabled: false
+    # Connection tracking disabled on Docker Desktop
     ctAny:
-      enabled: true
+      enabled: false
     # Program Pin Path
     mapShare: true
 
@@ -132,6 +133,9 @@ cilium:
     CILIUM_ENABLE_ENVOY_CONFIG_API: "false"
     CILIUM_ENABLE_HUBBLE_OPEN_METRICS: "true"
     CILIUM_HUBBLE_METRICS_PORT: "9091"
+    # Increase Kubernetes API client timeout for Docker Desktop bootstrap
+    KUBE_CLIENT_TIMEOUT: "180s"
+    KUBE_CLIENT_BACKOFF_DURATION: "180"
 
 # BGP Configuration Templates - will be created as separate manifests
 bgp:
