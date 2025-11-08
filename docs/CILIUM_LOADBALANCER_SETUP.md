@@ -65,34 +65,28 @@ For local development with KIND, the LoadBalancer IPs are allocated from the Doc
 - IPs are routable **within the cluster** (pod-to-pod communication)
 - L2 announcements work internally for cluster networking
 
-**Access Limitations (Expected):**
-- LoadBalancer IPs are NOT directly accessible from the host
-- This is a KIND/Docker limitation (L2 announcements don't cross Docker bridge boundary)
-- Use **NodePort** or **kubectl port-forward** to access from host instead
+**Docker Desktop Limitation (Expected & Normal):**
 
-**Proper Access Patterns:**
+LoadBalancer IPs (172.18.1.x) **are NOT directly accessible from the host machine**. This is a Docker Desktop limitation:
+- Docker's network isolation prevents routing to container subnets
+- This limitation **only exists on KIND/Docker Desktop**
+- **Real Kubernetes clusters** (bare metal, cloud, VMs) will route LoadBalancer IPs directly
 
-```bash
-# 1. View LoadBalancer IP (works within cluster only)
-kubectl get svc -n api-gateway kong-kong-proxy
-# Shows EXTERNAL-IP: 172.18.1.x
+**How to Access Kong on KIND:**
 
-# 2. Access via NodePort from host ✓
-curl http://172.18.0.2:30608/
-
-# 3. Access via port-forward from host ✓
-kubectl port-forward -n api-gateway svc/kong-kong-proxy 8000:80
-curl http://localhost:8000/
-
-# 4. Access from within cluster using LoadBalancer IP ✓
-kubectl run -it debug --image=curl -- curl http://172.18.1.x:80/
-```
+| Method | Command | Best For |
+|--------|---------|----------|
+| **port-forward** (recommended) | `kubectl port-forward -n api-gateway svc/kong-kong-proxy 8000:80` | Local testing (simplest) |
+| **Within cluster** | `kubectl exec -it <pod> -- curl http://kong-kong-proxy.api-gateway.svc.cluster.local/` | Pod-to-pod communication |
+| **NodePort** | `curl http://localhost:30608/` | When port-forward not available |
+| **LoadBalancer IP** | `curl http://172.18.1.2:80/` | ONLY within Kubernetes pods |
 
 **Why Use LoadBalancer on KIND?**
-- Allows testing LoadBalancer-based deployments
-- Services work correctly within cluster (multi-pod communication)
-- Production-ready configuration that's tested in local dev
-- NodePort/port-forward only needed for host access (not production issue)
+- Tests LoadBalancer-based deployments in CI/CD
+- Services work correctly within cluster (pod-to-pod)
+- Production-ready configuration tested in local dev
+- In production, LoadBalancer IPs will be directly accessible
+- HOST access requires port-forward (expected limitation)
 
 ## How to Apply (For Production)
 
