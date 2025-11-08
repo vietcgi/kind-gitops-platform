@@ -1,0 +1,278 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: tempo
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: tempo
+  namespace: tempo
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: tempo-config
+  namespace: tempo
+data:
+  tempo.yaml: |
+    server:
+      http_listen_port: 3200
+      log_level: info
+
+    distributor:
+      rate_limit_bytes: 10485760
+      rate_limit_enabled: true
+      receivers:
+        jaeger:
+          protocols:
+            grpc:
+              endpoint: 0.0.0.0:14250
+            thrift_http:
+              endpoint: 0.0.0.0:14268
+        zipkin:
+          endpoint: 0.0.0.0:9411
+        otlp:
+          protocols:
+            grpc:
+              endpoint: 0.0.0.0:4317
+            http:
+              endpoint: 0.0.0.0:4318
+
+    querier:
+      frontend_worker:
+        frontend_address: tempo:3200
+
+    metrics_generator:
+      metrics_ingestion_enabled: true
+
+    storage:
+      trace:
+        backend: local
+        local:
+          path: /var/tempo/traces
+        wal:
+          path: /var/tempo/wal
+
+    memberlist:
+      node_name: tempo-0
+      bind_port: 7946
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: tempo
+  namespace: tempo
+spec:
+  serviceName: tempo
+  replicas: 1
+  selector:
+    matchLabels:
+      app: tempo
+  template:
+    metadata:
+      labels:
+        app: tempo
+    spec:
+      serviceAccountName: tempo
+      containers:
+      - name: tempo
+        image: grafana/tempo:2.3.0
+        imagePullPolicy: IfNotPresent
+        ports:
+        - name: tempo-http
+          containerPort: 3200
+          protocol: TCP
+        - name: tempo-otlp-grpc
+          containerPort: 4317
+          protocol: TCP
+        - name: tempo-otlp-http
+          containerPort: 4318
+          protocol: TCP
+        - name: jaeger-grpc
+          containerPort: 14250
+          protocol: TCP
+        - name: jaeger-thrift
+          containerPort: 14268
+          protocol: TCP
+        - name: zipkin
+          containerPort: 9411
+          protocol: TCP
+        - name: gossip
+          containerPort: 7946
+          protocol: TCP
+        args:
+          - -config.file=/etc/tempo/tempo.yaml
+        resources:
+          requests:
+            cpu: 100m
+            memory: 256Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          runAsUser: 1000
+        volumeMounts:
+        - name: tempo-config
+          mountPath: /etc/tempo
+        - name: tempo-data
+          mountPath: /var/tempo
+        - name: tmp
+          mountPath: /tmp
+        livenessProbe:
+          httpGet:
+            path: /status
+            port: 3200
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /status
+            port: 3200
+          initialDelaySeconds: 10
+          periodSeconds: 5
+      volumes:
+      - name: tempo-config
+        configMap:
+          name: tempo-config
+      - name: tmp
+        emptyDir: {}
+  volumeClaimTemplates:
+  - metadata:
+      name: tempo-data
+    spec:
+      accessModes: ["ReadWriteOnce"]
+      resources:
+        requests:
+          storage: 10Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: tempo
+  namespace: tempo
+spec:
+  type: ClusterIP
+  ports:
+  - port: 3200
+    targetPort: 3200
+    name: tempo-http
+  - port: 4317
+    targetPort: 4317
+    name: otlp-grpc
+  - port: 4318
+    targetPort: 4318
+    name: otlp-http
+  - port: 14250
+    targetPort: 14250
+    name: jaeger-grpc
+  - port: 14268
+    targetPort: 14268
+    name: jaeger-thrift
+  - port: 9411
+    targetPort: 9411
+    name: zipkin
+  - port: 7946
+    targetPort: 7946
+    name: gossip
+  selector:
+    app: tempo
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: otel-collector-config
+  namespace: monitoring
+data:
+  otel-collector-config.yaml: |
+    receivers:
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:4317
+          http:
+            endpoint: 0.0.0.0:4318
+
+    exporters:
+      otlp:
+        endpoint: tempo.tempo:4317
+        tls:
+          insecure: true
+
+    service:
+      pipelines:
+        traces:
+          receivers: [otlp]
+          exporters: [otlp]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: otel-collector
+  namespace: monitoring
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: otel-collector
+  template:
+    metadata:
+      labels:
+        app: otel-collector
+    spec:
+      containers:
+      - name: otel-collector
+        image: otel/opentelemetry-collector-k8s:0.95.0
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 4317
+          name: otlp-grpc
+          protocol: TCP
+        - containerPort: 4318
+          name: otlp-http
+          protocol: TCP
+        args:
+          - --config=/etc/otel/otel-collector-config.yaml
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 200m
+            memory: 256Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          runAsUser: 1000
+        volumeMounts:
+        - name: otel-config
+          mountPath: /etc/otel
+        - name: tmp
+          mountPath: /tmp
+      volumes:
+      - name: otel-config
+        configMap:
+          name: otel-collector-config
+      - name: tmp
+        emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: otel-collector
+  namespace: monitoring
+spec:
+  type: ClusterIP
+  ports:
+  - port: 4317
+    targetPort: 4317
+    name: otlp-grpc
+  - port: 4318
+    targetPort: 4318
+    name: otlp-http
+  selector:
+    app: otel-collector

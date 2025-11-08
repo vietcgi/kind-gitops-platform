@@ -1,0 +1,231 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kyverno
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: kyverno
+  namespace: kyverno
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: kyverno
+rules:
+- apiGroups: ["*"]
+  resources: ["*"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["kyverno.io"]
+  resources: ["clusterpolicies", "clusterpolicies/status"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["kyverno.io"]
+  resources: ["policies", "policies/status"]
+  verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: kyverno
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: kyverno
+subjects:
+- kind: ServiceAccount
+  name: kyverno
+  namespace: kyverno
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kyverno
+  namespace: kyverno
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: kyverno
+  template:
+    metadata:
+      labels:
+        app: kyverno
+        version: v1.10.0
+    spec:
+      serviceAccountName: kyverno
+      containers:
+      - name: kyverno
+        image: ghcr.io/kyverno/kyverno:v1.10.0
+        imagePullPolicy: IfNotPresent
+        args:
+          - --loggingFormat=json
+          - --v=2
+        env:
+        - name: KYVERNO_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: INIT_CONFIG
+          value: kyverno
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          runAsUser: 1000
+        ports:
+        - containerPort: 6060
+          name: metrics
+        - containerPort: 8888
+          name: webhooks
+        volumeMounts:
+        - name: temp
+          mountPath: /tmp
+      volumes:
+      - name: temp
+        emptyDir: {}
+---
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: require-non-root
+spec:
+  validationFailureAction: enforce
+  rules:
+  - name: check-runAsNonRoot
+    match:
+      resources:
+        kinds:
+        - Pod
+    validate:
+      message: "Running as root is not allowed. Set securityContext.runAsNonRoot to true"
+      pattern:
+        spec:
+          securityContext:
+            runAsNonRoot: true
+---
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: restrict-image-registries
+spec:
+  validationFailureAction: enforce
+  rules:
+  - name: validate-image-registry
+    match:
+      resources:
+        kinds:
+        - Pod
+    validate:
+      message: "Only approved image registries are allowed"
+      pattern:
+        spec:
+          containers:
+          - image: "gcr.io/* | ghcr.io/* | docker.io/* | quay.io/*"
+---
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: require-resource-limits
+spec:
+  validationFailureAction: audit
+  rules:
+  - name: validate-resources
+    match:
+      resources:
+        kinds:
+        - Pod
+        excludeResources:
+          namespaces:
+          - kube-system
+          - kube-public
+          - kyverno
+    validate:
+      message: "CPU and memory limits are required"
+      pattern:
+        spec:
+          containers:
+          - resources:
+              limits:
+                memory: "?*"
+                cpu: "?*"
+              requests:
+                memory: "?*"
+                cpu: "?*"
+---
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: require-readonly-root-filesystem
+spec:
+  validationFailureAction: audit
+  rules:
+  - name: check-readOnlyRootFilesystem
+    match:
+      resources:
+        kinds:
+        - Pod
+        excludeResources:
+          namespaces:
+          - kube-system
+          - kube-public
+    validate:
+      message: "Root filesystem must be read-only"
+      pattern:
+        spec:
+          containers:
+          - securityContext:
+              readOnlyRootFilesystem: true
+---
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: disallow-privileged-containers
+spec:
+  validationFailureAction: enforce
+  rules:
+  - name: check-privileged
+    match:
+      resources:
+        kinds:
+        - Pod
+    validate:
+      message: "Privileged containers are not allowed"
+      pattern:
+        spec:
+          containers:
+          - securityContext:
+              privileged: false
+              allowPrivilegeEscalation: false
+---
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: require-labels
+spec:
+  validationFailureAction: audit
+  rules:
+  - name: check-labels
+    match:
+      resources:
+        kinds:
+        - Pod
+    validate:
+      message: "Labels are required for pod management"
+      pattern:
+        metadata:
+          labels:
+            app: "?*"
+            version: "?*"

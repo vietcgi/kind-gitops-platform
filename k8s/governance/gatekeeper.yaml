@@ -1,0 +1,248 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: gatekeeper-system
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: gatekeeper-admin
+  namespace: gatekeeper-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: gatekeeper-manager
+rules:
+- apiGroups: ["constraints.gatekeeper.sh"]
+  resources: ["*"]
+  verbs: ["*"]
+- apiGroups: ["templates.gatekeeper.sh"]
+  resources: ["constrainttemplates"]
+  verbs: ["*"]
+- apiGroups: [""]
+  resources: ["events"]
+  verbs: ["create", "patch"]
+- apiGroups: ["admissionregistration.k8s.io"]
+  resources: ["validatingwebhookconfigurations", "mutatingwebhookconfigurations"]
+  verbs: ["*"]
+- apiGroups: ["apps"]
+  resources: ["deployments", "replicasets"]
+  verbs: ["*"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: gatekeeper-manager
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: gatekeeper-manager
+subjects:
+- kind: ServiceAccount
+  name: gatekeeper-admin
+  namespace: gatekeeper-system
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gatekeeper
+  namespace: gatekeeper-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: gatekeeper
+  template:
+    metadata:
+      labels:
+        app: gatekeeper
+    spec:
+      serviceAccountName: gatekeeper-admin
+      containers:
+      - name: manager
+        image: openpolicyagent/gatekeeper:v3.14.0
+        imagePullPolicy: IfNotPresent
+        args:
+          - --audit-interval=60
+          - --log-level=info
+          - --constraint-violations-limit=20
+          - --audit-from-cache=true
+          - --web-hook-timeout=2
+        ports:
+        - containerPort: 8888
+          name: web
+          protocol: TCP
+        - containerPort: 8787
+          name: metrics
+          protocol: TCP
+        resources:
+          requests:
+            cpu: 100m
+            memory: 256Mi
+          limits:
+            cpu: 1000m
+            memory: 512Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          runAsUser: 1000
+        volumeMounts:
+        - name: webhook-certs
+          mountPath: /certs
+          readOnly: true
+      volumes:
+      - name: webhook-certs
+        secret:
+          secretName: gatekeeper-webhook-server-cert
+          optional: true
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: gatekeeper-webhook-service
+  namespace: gatekeeper-system
+spec:
+  ports:
+  - port: 443
+    targetPort: 8888
+    protocol: TCP
+  selector:
+    app: gatekeeper
+---
+apiVersion: constraints.gatekeeper.sh/v1beta1
+kind: K8sAllowedRepos
+metadata:
+  name: allowed-registries
+spec:
+  match:
+    excludedNamespaces:
+    - gatekeeper-system
+    - kube-system
+    - kube-public
+  parameters:
+    repos:
+    - "gcr.io"
+    - "ghcr.io"
+    - "quay.io"
+    - "docker.io"
+---
+apiVersion: constraints.gatekeeper.sh/v1beta1
+kind: K8sRequiredLabels
+metadata:
+  name: required-labels
+spec:
+  match:
+    excludedNamespaces:
+    - gatekeeper-system
+    - kube-system
+  parameters:
+    labels: ["app", "version"]
+---
+apiVersion: constraints.gatekeeper.sh/v1beta1
+kind: K8sBlockNodePort
+metadata:
+  name: block-nodeport
+spec:
+  match:
+    excludedNamespaces:
+    - gatekeeper-system
+    - kube-system
+---
+apiVersion: constraints.gatekeeper.sh/v1beta1
+kind: K8sPSPPrivilegedContainer
+metadata:
+  name: psp-no-privileged
+spec:
+  match:
+    excludedNamespaces:
+    - gatekeeper-system
+    - kube-system
+---
+apiVersion: constraints.gatekeeper.sh/v1beta1
+kind: K8sRequiredProbes
+metadata:
+  name: required-probes
+spec:
+  match:
+    excludedNamespaces:
+    - gatekeeper-system
+    - kube-system
+  parameters:
+    probes: ["livenessProbe", "readinessProbe"]
+---
+apiVersion: constraints.gatekeeper.sh/v1beta1
+kind: K8sContainerLimits
+metadata:
+  name: container-limits
+spec:
+  match:
+    excludedNamespaces:
+    - gatekeeper-system
+    - kube-system
+  parameters:
+    cpu: 1000m
+    memory: 512Mi
+---
+apiVersion: audit.gatekeeper.sh/v1
+kind: Constraint
+metadata:
+  name: audit-all-violations
+  namespace: gatekeeper-system
+spec:
+  severity: warning
+  match:
+    excludedNamespaces:
+    - gatekeeper-system
+    - kube-system
+  audit:
+    violationCount: 1000
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: gatekeeper-audit
+rules:
+- apiGroups: [""]
+  resources: ["events"]
+  verbs: ["create"]
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["get", "list"]
+- apiGroups: ["apps"]
+  resources: ["deployments", "statefulsets", "daemonsets"]
+  verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: gatekeeper-audit
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: gatekeeper-audit
+subjects:
+- kind: ServiceAccount
+  name: gatekeeper-admin
+  namespace: gatekeeper-system
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gatekeeper-audit-config
+  namespace: gatekeeper-system
+data:
+  audit-config.yaml: |
+    apiVersion: config.gatekeeper.sh/v1alpha1
+    kind: Config
+    metadata:
+      name: config
+    spec:
+      match:
+        - excludedNamespaces: ["gatekeeper-system", "kube-system", "kube-public"]
+          processes: ["audit"]
+      audit:
+        auditInterval: 60s
+        logAllRequests: false
+        logDenies: true

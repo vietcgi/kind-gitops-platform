@@ -1,0 +1,94 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: falco
+---
+apiVersion: helm.fluxcd.io/v1
+kind: HelmRelease
+metadata:
+  name: falco
+  namespace: falco
+spec:
+  interval: 5m
+  chart:
+    spec:
+      chart: falco
+      sourceRef:
+        kind: HelmRepository
+        name: falcosecurity
+        namespace: falco
+  values:
+    image:
+      repository: falcosecurity/falco
+      tag: 0.36.0
+    falco:
+      grpc:
+        enabled: true
+      grpcOutput:
+        enabled: true
+    ebpf:
+      enabled: true
+    serviceAccount:
+      create: true
+      name: falco
+    podSecurityPolicy:
+      create: true
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        cpu: 1000m
+        memory: 1024Mi
+    tolerations:
+    - key: node-role.kubernetes.io/control-plane
+      operator: Exists
+      effect: NoSchedule
+    nodeSelector: {}
+    affinity: {}
+    customRules: |
+      - rule: Unauthorized Process
+        desc: Detect unauthorized process execution
+        condition: >
+          spawned_process and container and
+          not proc.name in (allowed_processes)
+        output: >
+          Unauthorized process execution (user=%user.name command=%proc.cmdline container=%container.info)
+        priority: WARNING
+        tags: [process, container, security]
+      - rule: Sensitive File Access
+        desc: Detect access to sensitive files
+        condition: >
+          open and container and
+          fd.name glob /etc/shadow or fd.name glob /etc/passwd
+        output: >
+          Sensitive file accessed (user=%user.name file=%fd.name container=%container.info)
+        priority: CRITICAL
+        tags: [file, container, security]
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: falco-custom-rules
+  namespace: falco
+data:
+  custom-rules.yaml: |
+    - rule: Container Escape Attempt
+      desc: Detect potential container escape attempts
+      condition: >
+        open and container and
+        (fd.name contains "/proc" or fd.name contains "/sys/kernel")
+      output: >
+        Container escape attempt (user=%user.name file=%fd.name container=%container.info)
+      priority: CRITICAL
+      tags: [container, security, escape]
+
+    - rule: Privilege Escalation
+      desc: Detect privilege escalation attempts
+      condition: >
+        spawned_process and container and
+        (proc.name = "sudo" or proc.name = "su")
+      output: >
+        Privilege escalation attempt (user=%user.name process=%proc.name container=%container.info)
+      priority: CRITICAL
+      tags: [privilege, container, security]
