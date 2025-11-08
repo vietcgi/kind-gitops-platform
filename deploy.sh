@@ -60,11 +60,9 @@ helm install cilium cilium/cilium --version 1.18.3 \
   --namespace kube-system \
   --set image.pullPolicy=IfNotPresent \
   --set ipam.mode=kubernetes \
-  --set kubeProxyReplacement=true \
-  --set bpf.masquerade=true \
   --set l2announcements.enabled=true \
   --set l2announcements.leaseDuration=3s \
-  --wait --timeout=15m 2>&1 | tail -10
+  --wait --timeout=10m 2>&1 | tail -5
 log_info "Waiting for Cilium to be ready..."
 kubectl wait --for=condition=Ready pod -l k8s-app=cilium -n kube-system --timeout=10m 2>/dev/null || true
 sleep 10
