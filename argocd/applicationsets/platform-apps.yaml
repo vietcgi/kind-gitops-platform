@@ -25,6 +25,15 @@ spec:
         group: observability
         syncWave: 1
 
+      - name: metrics-server
+        namespace: kube-system
+        repoURL: https://kubernetes-sigs.github.io/metrics-server/
+        chart: metrics-server
+        version: "*"
+        syncPolicy: aggressive
+        group: infrastructure
+        syncWave: 0
+
       - name: loki
         namespace: monitoring
         repoURL: https://grafana.github.io/helm-charts
@@ -373,6 +382,7 @@ data:
   # Platform applications inventory
   platform-apps: |
     infrastructure:
+      - metrics-server
       - external-dns
       - kong
       - longhorn
