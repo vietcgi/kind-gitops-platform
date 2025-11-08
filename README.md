@@ -16,46 +16,46 @@ Includes:
 
 ## Quick Start
 
+**Prerequisites**: Install `kind`, `docker`, `kubectl`, `helm`
+
 ```bash
 # Clone and navigate
 git clone git@github.com:vietcgi/kubernetes-platform-stack.git
 cd kubernetes-platform-stack
 
-# Create KIND cluster
-kind create cluster --config .github/kind-config.yaml
+# Create KIND cluster (1 control plane + 2 workers)
+kind create cluster --config kind-config.yaml --name platform
 
-# Install Cilium
-helm repo add cilium https://helm.cilium.io
-helm repo update
-helm install cilium cilium/cilium \
-  --namespace kube-system \
-  --set cni.chainingMode=none \
-  --set loadBalancer.enabled=true \
-  --set encryption.enabled=true \
+# Verify cluster
+kubectl cluster-info
+kubectl get nodes  # Should show 3 nodes ready
+
+# Build Docker image
+docker build -t kubernetes-platform-stack:latest .
+
+# Load image into KIND
+kind load docker-image kubernetes-platform-stack:latest --name platform
+
+# Create app namespace
+kubectl create namespace app
+
+# Deploy application via Helm
+helm install my-app helm/my-app \
+  --namespace app \
+  --set image.pullPolicy=Never \
   --wait
 
-# Install Istio
-curl -L https://istio.io/downloadIstio | ISTIO_VERSION=1.18.0 sh -
-cd istio-1.18.0
-kubectl create namespace istio-system
-./bin/istioctl install --set profile=demo -y
-cd ..
+# Verify deployment
+kubectl get pods -n app        # Should show 2 running pods
+kubectl get svc -n app         # Should show LoadBalancer service
 
-# Set up app namespace
-kubectl create namespace app
-kubectl label namespace app istio-injection=enabled
-
-# Deploy
-helm install my-app helm/my-app --namespace app --wait
-
-# Check status
-kubectl get pods -n app
-kubectl get svc -n app
-
-# Access the app
-kubectl port-forward -n app svc/my-app 8080:80
+# Test the app
+kubectl port-forward -n app svc/my-app 8080:80 &
 curl http://localhost:8080/health
+# Output: {"status":"healthy",...}
 ```
+
+**Done!** Your Kubernetes platform is running.
 
 ## What's Included
 
