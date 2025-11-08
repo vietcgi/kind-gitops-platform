@@ -99,11 +99,8 @@ spec:
         group: applications
 
   template:
-    apiVersion: argoproj.io/v1alpha1
-    kind: Application
     metadata:
       name: '{{ .name }}'
-      namespace: argocd
       labels:
         app.kubernetes.io/name: '{{ .name }}'
         app.kubernetes.io/group: '{{ .group }}'
@@ -112,39 +109,25 @@ spec:
         - resources-finalizer.argocd.argoproj.io
     spec:
       project: default
-
       source:
         repoURL: https://github.com/vietcgi/kubernetes-platform-stack
         targetRevision: main
         path: '{{ .path }}'
-
       destination:
         server: https://kubernetes.default.svc
         namespace: '{{ .namespace }}'
-
-      # Dynamic sync policy based on app type
       syncPolicy:
         automated:
-          {{- if eq .syncPolicy "aggressive" }}
-          prune: true
-          {{- else }}
-          prune: false
-          {{- end }}
           selfHeal: true
         syncOptions:
           - CreateNamespace=true
           - RespectIgnoreDifferences=true
-
         retry:
           limit: 5
           backoff:
             duration: 5s
             factor: 2
             maxDuration: 3m
-
-        revisionHistoryLimit: 10
-
-      # Handle CRD conversion fields
       ignoreDifferences:
         - group: apiextensions.k8s.io
           kind: CustomResourceDefinition
@@ -154,6 +137,12 @@ spec:
           kind: CustomResourceDefinition
           jsonPointers:
             - /status
+  goTemplateOptions: ["missingkey=error"]
+  templatePatch: |
+    spec:
+      syncPolicy:
+        automated:
+          prune: {{ if eq .syncPolicy "aggressive" }}true{{ else }}false{{ end }}
 
 ---
 apiVersion: v1

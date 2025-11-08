@@ -35,16 +35,10 @@ cilium:
     algorithm: maglev
     mode: snat
 
-  # Kube-proxy replacement disabled for Docker Desktop to avoid TLS timeout during init
-  # Root cause: Docker Desktop kernel is too slow for TLS handshakes, causing cilium-dbg init container
-  # to timeout when trying to connect to the Kubernetes API server on bootstrap.
-  # This is a known Docker Desktop + KIND limitation that cannot be fixed at the application level.
-  # Error: net/http: TLS handshake timeout during "Establishing connection to apiserver"
-  #
-  # To enable kube-proxy replacement on production clusters, set:
-  # kubeProxyReplacement: partial
-  # kubeProxyReplacementHealthzBindAddr: 0.0.0.0:10256
-  kubeProxyReplacement: disabled
+  # Kube-proxy replacement enabled for proper DNS and service resolution
+  # CRITICAL: This must be enabled for CoreDNS and service DNS resolution to work properly
+  # The --set flags in deploy.sh override this value to ensure it's always enabled
+  kubeProxyReplacement: true
 
   # eBPF-based kube-proxy replacement features disabled
   bpf:
