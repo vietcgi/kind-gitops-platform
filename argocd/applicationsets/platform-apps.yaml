@@ -303,8 +303,8 @@ spec:
                 annotations:
                   konghq.com/strip-path: "true"
                 hosts:
-                  core: harbor.demo.local
-                  notary: harbor-notary.demo.local
+                  core: harbor.local
+                  notary: harbor-notary.local
             {{ else if eq .name "vault" }}
             # Vault ingress for Kong
             ui:
@@ -347,12 +347,6 @@ spec:
             - /spec/conversion
             - /status
             - /metadata/annotations
-            - /metadata/managedFields
-        # Ignore Helm client-side apply annotations that exceed 262KB limit
-        - group: apiextensions.k8s.io
-          kind: CustomResourceDefinition
-          managedFieldsManagers:
-            - helm
   goTemplateOptions: ["missingkey=error"]
   templatePatch: |
     metadata:
