@@ -1,0 +1,9 @@
+apiVersion: cilium.io/v2alpha1
+kind: CiliumLoadBalancerIPPool
+metadata:
+  name: default
+spec:
+  # Allocate IPs from this range for LoadBalancer services
+  # For KIND/Docker environments, using IPs that won't conflict
+  cidrs:
+    - cidr: "172.20.0.0/24"
