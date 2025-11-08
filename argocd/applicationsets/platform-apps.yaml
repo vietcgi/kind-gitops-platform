@@ -174,10 +174,6 @@ spec:
         app.kubernetes.io/name: '{{ .name }}'
         app.kubernetes.io/group: '{{ .group }}'
         app.kubernetes.io/managed-by: applicationset
-      {{ if .syncWave }}
-      annotations:
-        argocd.argoproj.io/sync-wave: "{{ .syncWave }}"
-      {{ end }}
       finalizers:
         - resources-finalizer.argocd.argoproj.io
     spec:
@@ -280,6 +276,11 @@ spec:
             - /metadata/annotations
   goTemplateOptions: ["missingkey=error"]
   templatePatch: |
+    metadata:
+      annotations:
+        {{- if .syncWave }}
+        argocd.argoproj.io/sync-wave: "{{ .syncWave }}"
+        {{- end }}
     spec:
       syncPolicy:
         automated:
