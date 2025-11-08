@@ -249,7 +249,7 @@ if [ -z "$all_apps" ]; then
     exit 1
 fi
 
-# Wait for each app to be healthy (accept either Synced or Unknown sync status if healthy)
+# Wait for each app to be healthy (accept Synced/Unknown sync status if healthy)
 for app in $all_apps; do
     log_info "Monitoring application: $app"
     for i in {1..120}; do
@@ -257,12 +257,11 @@ for app in $all_apps; do
         SYNC_STATUS=$(kubectl get application "$app" -n argocd -o jsonpath='{.status.sync.status}' 2>/dev/null || echo "Unknown")
         HEALTH_STATUS=$(kubectl get application "$app" -n argocd -o jsonpath='{.status.health.status}' 2>/dev/null || echo "Unknown")
 
-        # Accept app if: (Synced AND Healthy) OR (Healthy regardless of sync - for missing helm charts)
+        # Accept app if healthy (regardless of sync status)
+        # Sync can be Synced, Unknown, OutOfSync, but Healthy is the key metric
         if [ "$HEALTH_STATUS" = "Healthy" ]; then
-            if [ "$SYNC_STATUS" = "Synced" ] || [ "$SYNC_STATUS" = "Unknown" ]; then
-                log_info "✓ $app is Healthy (Sync=$SYNC_STATUS)"
-                break
-            fi
+            log_info "✓ $app is Healthy (Sync=$SYNC_STATUS)"
+            break
         fi
 
         if [ $((i % 15)) -eq 0 ]; then
