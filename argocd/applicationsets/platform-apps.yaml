@@ -259,8 +259,8 @@ spec:
               backupTargetCredentialSecret: ""
             {{ else if eq .name "velero" }}
             # Velero backup and disaster recovery
-            upgradeCredsJob:
-              enabled: false
+            # Disable CRD upgrade hook - incompatible with GitOps (use official parameter)
+            upgradeCRDs: false
             configuration:
               backupStorageLocation:
                 - name: default
