@@ -207,10 +207,8 @@ sleep 5
 # Step 7: CoreDNS will be deployed by ArgoCD as a managed application
 # NOTE: CoreDNS is managed through ArgoCD as part of the platform applications
 # This keeps the entire stack consistent with the GitOps approach
-log_info "CoreDNS will be deployed by ArgoCD (managed via Application CRD)"
-log_info "Adding coredns Helm repo for ArgoCD to use..."
-helm repo add coredns https://coredns.io/helm --force-update
-sleep 3
+log_info "Adding coredns Helm repo for ArgoCD..."
+helm repo add coredns https://coredns.io/helm --force-update 2>&1 | tail -2
 
 # Step 8: Install ArgoCD for GitOps orchestration
 log_info "Installing ArgoCD (v3.2.0) for GitOps..."
@@ -224,20 +222,20 @@ else
     kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml 2>&1 | tail -5
 fi
 
-log_info "Waiting for ArgoCD to be ready (this may take 5-10 minutes)..."
-for i in {1..120}; do
+log_info "Waiting for ArgoCD to be ready (fast-track mode)..."
+for i in {1..60}; do
     argocd_server=$(kubectl get deployment argocd-server -n argocd -o jsonpath='{.status.readyReplicas}' 2>/dev/null)
     argocd_server=${argocd_server:-0}  # default to 0 if empty
     if [ "$argocd_server" -ge 1 ]; then
         log_info "✓ ArgoCD server is ready"
         break
     fi
-    if [ $((i % 20)) -eq 0 ]; then
-        log_info "Waiting for ArgoCD server... ($i/120)"
+    if [ $((i % 10)) -eq 0 ]; then
+        log_info "Waiting for ArgoCD server... ($i/60)"
     fi
-    sleep 3
+    sleep 1
 done
-sleep 10
+sleep 2
 
 # Step 9: Apply ArgoCD NetworkPolicies with DNS egress support
 # NOTE: NetworkPolicies disabled to avoid circular dependency that blocks DNS resolution
@@ -249,7 +247,6 @@ log_info "Skipping NetworkPolicies - using unrestricted pod communication for de
 log_info "Applying Kyverno CRD compatibility layer..."
 if [ -f "$SCRIPT_DIR/manifests/kyverno/crds-compat.yaml" ]; then
     kubectl apply -f "$SCRIPT_DIR/manifests/kyverno/crds-compat.yaml" 2>&1 | tail -3
-    sleep 2
 fi
 
 # Step 11: Apply ApplicationSet to generate all platform applications
@@ -258,14 +255,12 @@ if [ ! -f "$SCRIPT_DIR/argocd/applicationsets/platform-apps.yaml" ]; then
     log_error "ApplicationSet file not found: $SCRIPT_DIR/argocd/applicationsets/platform-apps.yaml"
     exit 1
 fi
-kubectl apply -f "$SCRIPT_DIR/argocd/applicationsets/platform-apps.yaml"
-sleep 10
+kubectl apply -f "$SCRIPT_DIR/argocd/applicationsets/platform-apps.yaml" &
 
 # Apply CoreDNS Application (managed by ArgoCD)
 log_info "Applying CoreDNS Application..."
 if [ -f "$SCRIPT_DIR/argocd/applications/coredns.yaml" ]; then
-    kubectl apply -f "$SCRIPT_DIR/argocd/applications/coredns.yaml"
-    sleep 5
+    kubectl apply -f "$SCRIPT_DIR/argocd/applications/coredns.yaml" &
 else
     log_warn "CoreDNS Application not found: $SCRIPT_DIR/argocd/applications/coredns.yaml"
 fi
@@ -273,15 +268,16 @@ fi
 # Apply Kong ingress routes Application (managed by ArgoCD)
 log_info "Applying Kong Ingress Routes Application..."
 if [ -f "$SCRIPT_DIR/argocd/applications/kong-ingress.yaml" ]; then
-    kubectl apply -f "$SCRIPT_DIR/argocd/applications/kong-ingress.yaml"
-    sleep 5
+    kubectl apply -f "$SCRIPT_DIR/argocd/applications/kong-ingress.yaml" &
 else
     log_warn "Kong ingress Application not found: $SCRIPT_DIR/argocd/applications/kong-ingress.yaml"
 fi
 
+wait  # Wait for all kubectl apply commands to complete
+
 # Step 12: Wait for all applications to be created by ApplicationSet
 log_info "Waiting for ApplicationSet to generate applications..."
-sleep 5
+sleep 2
 max_attempts=30
 attempts=0
 while [ $attempts -lt $max_attempts ]; do
