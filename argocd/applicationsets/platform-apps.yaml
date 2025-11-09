@@ -194,6 +194,9 @@ spec:
         helm:
           releaseName: '{{ .name }}'
           values: |
+            # Default minimal replicas for laptop deployment
+            replicaCount: 1
+            replicas: 1
             {{ if eq .name "cert-manager" }}
             # Enable CRD installation for cert-manager
             crds:
@@ -203,6 +206,7 @@ spec:
             prometheus:
               prometheusSpec:
                 podMonitorNamespaceSelector: {}
+                replicas: 1
               # Prometheus ingress for Kong
               ingress:
                 enabled: true
@@ -215,6 +219,7 @@ spec:
                   - /
             # Grafana ingress for Kong (part of kube-prometheus-stack)
             grafana:
+              replicas: 1
               ingress:
                 enabled: true
                 ingressClassName: kong
@@ -226,8 +231,13 @@ spec:
               adminPassword: prom-operator
             kubeStateMetrics:
               enabled: true
+              replicas: 1
             nodeExporter:
               enabled: true
+            alertmanager:
+              enabled: true
+              alertmanagerSpec:
+                replicas: 1
             {{ else if eq .name "external-dns" }}
             # External DNS for automatic DNS record management
             policy: sync
@@ -304,6 +314,7 @@ spec:
               enabled: false
             deployment:
               hostNetwork: true
+              replicas: 1
             # Enable Kong Ingress Controller for ingress routing
             ingressController:
               enabled: true
