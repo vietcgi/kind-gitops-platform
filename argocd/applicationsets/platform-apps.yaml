@@ -228,6 +228,12 @@ spec:
             policy: sync
             registry: txt
             txtOwnerId: external-dns
+            {{ else if eq .name "metrics-server" }}
+            # Metrics-server for KIND - disable TLS verification for kubelet certificates
+            # KIND kubelet certificates don't include IP SANs, so verification fails
+            args:
+              - --kubelet-insecure-tls
+              - --kubelet-preferred-address-types=InternalIP,ExternalIP,Hostname
             {{ else if eq .name "loki" }}
             # Loki ingress disabled - chart has template validation issues
             loki:
