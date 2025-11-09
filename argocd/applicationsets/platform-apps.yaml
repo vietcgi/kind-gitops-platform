@@ -20,7 +20,7 @@ spec:
         namespace: monitoring
         repoURL: https://prometheus-community.github.io/helm-charts
         chart: kube-prometheus-stack
-        version: "*"
+        version: "70.10.0"
         syncPolicy: aggressive
         group: observability
         syncWave: 1
@@ -199,8 +199,7 @@ spec:
             crds:
               enabled: true
             {{ else if eq .name "prometheus" }}
-            # Kube-prometheus-stack needs extra settings for KIND
-            # Note: CRD annotations may exceed 262KB limit - ignore differences to prevent sync failures
+            # Kube-prometheus-stack: Using v70.10.0 to avoid CRD annotation size issues
             prometheus:
               prometheusSpec:
                 podMonitorNamespaceSelector: {}
@@ -224,13 +223,11 @@ spec:
                 hosts:
                   - grafana.demo.local
                 path: /
-            # Disable webhook to prevent CRD installation issues on KIND
+              adminPassword: prom-operator
             kubeStateMetrics:
               enabled: true
             nodeExporter:
               enabled: true
-            grafana:
-              adminPassword: prom-operator
             {{ else if eq .name "external-dns" }}
             # External DNS for automatic DNS record management
             policy: sync
@@ -403,6 +400,8 @@ spec:
       syncPolicy:
         automated:
           prune: {{ if eq .syncPolicy "aggressive" }}true{{ else }}false{{ end }}
+      # ignoreDifferences are already defined in template.spec, but we can't merge them here in templatePatch
+      # The ignoreDifferences rules will apply to all generated applications
 
 ---
 apiVersion: v1
