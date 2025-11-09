@@ -5,6 +5,11 @@ networking:
   disableDefaultCNI: true
   # Disable kube-proxy - Cilium will handle service load balancing
   kubeProxyMode: none
+kubeadmConfigPatches:
+- |
+  kind: ClusterConfiguration
+  dns:
+    type: None
 nodes:
 - role: control-plane
   image: kindest/node:v1.34.0
