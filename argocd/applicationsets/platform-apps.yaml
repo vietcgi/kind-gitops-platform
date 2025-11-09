@@ -355,6 +355,10 @@ spec:
             - /spec/conversion
             - /status
             - /metadata/annotations
+        - group: batch
+          kind: Job
+          name: velero-upgrade-crds
+          namespace: velero
   goTemplateOptions: ["missingkey=error"]
   templatePatch: |
     metadata:
