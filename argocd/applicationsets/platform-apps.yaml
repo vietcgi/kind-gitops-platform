@@ -229,18 +229,10 @@ spec:
             registry: txt
             txtOwnerId: external-dns
             {{ else if eq .name "loki" }}
-            # Loki ingress for Kong
+            # Loki ingress disabled - chart has template validation issues
             loki:
               ingress:
-                enabled: true
-                ingressClassName: kong
-                annotations:
-                  konghq.com/strip-path: "true"
-                hosts:
-                  - host: loki.demo.local
-                    paths:
-                      - path: /
-                        pathType: Prefix
+                enabled: false
             {{ else if eq .name "longhorn" }}
             # Longhorn persistent storage
             # Skip pre-upgrade hooks to avoid service account dependency issues
