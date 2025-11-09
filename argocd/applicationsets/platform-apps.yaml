@@ -253,6 +253,8 @@ spec:
               backupTargetCredentialSecret: ""
             {{ else if eq .name "velero" }}
             # Velero backup and disaster recovery
+            upgradeCredsJob:
+              enabled: false
             configuration:
               backupStorageLocation:
                 - name: default
