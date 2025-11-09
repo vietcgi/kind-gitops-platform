@@ -148,6 +148,26 @@ done
 if [ "$coredns_ready" -eq 0 ]; then
     log_warn "CoreDNS not fully ready but continuing..."
 fi
+
+# Step 5b: Optimize CoreDNS resources for laptop deployment
+log_info "Deploying CoreDNS system component..."
+kubectl patch deployment coredns -n kube-system --type='json' -p='[
+  {
+    "op": "replace",
+    "path": "/spec/template/spec/containers/0/resources",
+    "value": {
+      "limits": {
+        "cpu": "100m",
+        "memory": "64Mi"
+      },
+      "requests": {
+        "cpu": "50m",
+        "memory": "32Mi"
+      }
+    }
+  }
+]' 2>/dev/null || log_warn "Could not patch CoreDNS resources"
+
 sleep 5
 
 # Step 6: Install Cilium CNI with BGP and kube-proxy replacement
