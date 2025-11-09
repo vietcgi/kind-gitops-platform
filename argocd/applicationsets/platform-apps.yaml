@@ -315,20 +315,12 @@ spec:
                   core: harbor.local
                   notary: harbor-notary.local
             {{ else if eq .name "vault" }}
-            # Vault ingress for Kong
+            # Vault ingress disabled - chart has template validation issues
             ui:
               enabled: true
             server:
               ingress:
-                enabled: true
-                ingressClassName: kong
-                annotations:
-                  konghq.com/strip-path: "true"
-                hosts:
-                  - host: vault.demo.local
-                    paths:
-                      - path: /
-                        pathType: Prefix
+                enabled: false
             {{ else }}
             {}
             {{ end }}
@@ -359,6 +351,10 @@ spec:
           kind: Job
           name: velero-upgrade-crds
           namespace: velero
+        - group: batch
+          kind: Job
+          name: longhorn-pre-upgrade
+          namespace: longhorn-system
   goTemplateOptions: ["missingkey=error"]
   templatePatch: |
     metadata:
