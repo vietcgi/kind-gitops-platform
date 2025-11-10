@@ -316,7 +316,7 @@ else
 fi
 
 # Apply NetworkPolicies as cluster infrastructure (not managed by ArgoCD)
-log_info "Applying NetworkPolicies for Harbor and Longhorn..."
+log_info "Applying NetworkPolicies for Harbor, Longhorn, and Gatekeeper..."
 if [ -f "$SCRIPT_DIR/manifests/harbor/network-policy.yaml" ]; then
     kubectl apply -f "$SCRIPT_DIR/manifests/harbor/network-policy.yaml" &
 else
@@ -326,6 +326,11 @@ if [ -f "$SCRIPT_DIR/manifests/longhorn/network-policy.yaml" ]; then
     kubectl apply -f "$SCRIPT_DIR/manifests/longhorn/network-policy.yaml" &
 else
     log_warn "Longhorn NetworkPolicy not found: $SCRIPT_DIR/manifests/longhorn/network-policy.yaml"
+fi
+if [ -f "$SCRIPT_DIR/manifests/gatekeeper/network-policy.yaml" ]; then
+    kubectl apply -f "$SCRIPT_DIR/manifests/gatekeeper/network-policy.yaml" &
+else
+    log_warn "Gatekeeper NetworkPolicy not found: $SCRIPT_DIR/manifests/gatekeeper/network-policy.yaml"
 fi
 
 wait  # Wait for all kubectl apply commands to complete
