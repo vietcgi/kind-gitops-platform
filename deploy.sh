@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -e
+set +e  # Don't exit on errors - handle them explicitly
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CLUSTER_NAME="${CLUSTER_NAME:-platform}"
