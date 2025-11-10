@@ -7,6 +7,25 @@ CLUSTER_NAME="${CLUSTER_NAME:-platform}"
 REPO_URL="https://github.com/vietcgi/kubernetes-platform-stack"
 FORCE_DELETE=false
 
+# Colors for output (defined early for use in arg parsing)
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m'
+
+# Logger functions (defined early for use in arg parsing)
+log_info() {
+    echo -e "${GREEN}INFO${NC}: $1"
+}
+
+log_warn() {
+    echo -e "${YELLOW}WARN${NC}: $1"
+}
+
+log_error() {
+    echo -e "${RED}ERROR${NC}: $1"
+}
+
 # Parse command-line flags
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -44,24 +63,6 @@ else
     echo "MODE: Idempotent (skip if cluster exists)"
 fi
 echo ""
-
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-NC='\033[0m'
-
-log_info() {
-    echo -e "${GREEN}INFO${NC}: $1"
-}
-
-log_warn() {
-    echo -e "${YELLOW}WARN${NC}: $1"
-}
-
-log_error() {
-    echo -e "${RED}ERROR${NC}: $1"
-}
 
 # Check prerequisites
 log_info "Checking prerequisites..."
