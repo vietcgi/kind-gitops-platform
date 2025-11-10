@@ -149,6 +149,19 @@ loki-stack:
     port: 3100
     annotations: {}
 
+  # Ingress configuration for Kong
+  ingress:
+    enabled: true
+    ingressClassName: kong
+    annotations:
+      konghq.com/strip-path: "true"
+    hosts:
+      - host: loki.demo.local
+        paths:
+          - path: /
+            pathType: Prefix
+    tls: []
+
   # RBAC
   rbac:
     create: true

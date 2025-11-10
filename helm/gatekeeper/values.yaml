@@ -77,6 +77,19 @@ gatekeeper:
   # Affinity
   affinity: {}
 
+  # Ingress configuration for Kong
+  ingress:
+    enabled: true
+    ingressClassName: kong
+    annotations:
+      konghq.com/strip-path: "true"
+    hosts:
+      - host: gatekeeper.demo.local
+        paths:
+          - path: /
+            pathType: Prefix
+    tls: []
+
 # Pod disruption budget
 podDisruptionBudget:
   enabled: false

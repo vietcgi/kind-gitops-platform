@@ -170,7 +170,16 @@ tempo:
 
   # Ingress (optional, not needed for internal use)
   ingress:
-    enabled: false
+    enabled: true
+    ingressClassName: kong
+    annotations:
+      konghq.com/strip-path: "true"
+    hosts:
+      - host: tempo.demo.local
+        paths:
+          - path: /
+            pathType: Prefix
+    tls: []
 
 # Trace receiver configuration
 receivers:

@@ -80,3 +80,16 @@ falcoSidekick:
 # RBAC
 rbac:
   create: true
+
+# Ingress configuration for Kong (for Falco UI/API)
+ingress:
+  enabled: true
+  ingressClassName: kong
+  annotations:
+    konghq.com/strip-path: "true"
+  hosts:
+    - host: falco.demo.local
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
