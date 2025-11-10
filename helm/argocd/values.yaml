@@ -162,9 +162,18 @@ argo-cd:
   podDisruptionBudget:
     enabled: false  # Disable for single-replica deployments
 
-  # Ingress (optional, use LoadBalancer service instead)
+  # Ingress configuration for Kong
   ingress:
-    enabled: false
+    enabled: true
+    ingressClassName: kong
+    annotations:
+      konghq.com/strip-path: "true"
+    hosts:
+      - host: argocd.demo.local
+        paths:
+          - path: /
+            pathType: Prefix
+    tls: []
 
 # Git repository for app manifests (required for GitOps)
 gitRepository:
