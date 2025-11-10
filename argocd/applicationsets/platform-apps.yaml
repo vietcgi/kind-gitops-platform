@@ -222,6 +222,17 @@ spec:
             {{ else if eq .name "falco" }}
             # Falco runtime security
             replicaCount: 1
+            # Falco ingress for Kong
+            webui:
+              enabled: true
+              service:
+                type: ClusterIP
+              ingress:
+                enabled: true
+                ingressClassName: kong
+                annotations:
+                  konghq.com/strip-path: "true"
+                host: falco.demo.local
             {{ else if eq .name "gatekeeper" }}
             # Gatekeeper policy enforcement
             replicas: 1
@@ -230,6 +241,8 @@ spec:
             # Disable CRD upgrades (let operator manage them)
             disableMutation: false
             disableValidatingWebhook: false
+            # Gatekeeper ingress for Kong
+            enableExternalData: true
             {{ else if eq .name "sealed-secrets" }}
             # Sealed Secrets
             replicaCount: 1
@@ -319,6 +332,17 @@ spec:
               replicas: 1
             reportsController:
               replicas: 1
+            # Kyverno CLI reports ingress for Kong
+            reportsUI:
+              enabled: true
+              service:
+                type: ClusterIP
+              ingress:
+                enabled: true
+                ingressClassName: kong
+                annotations:
+                  konghq.com/strip-path: "true"
+                host: kyverno.demo.local
             {{ else if eq .name "tempo" }}
             # Tempo distributed tracing
             replicas: 1
@@ -345,6 +369,13 @@ spec:
             # Set UI to 1 replica
             longhornUI:
               replicas: 1
+            # Longhorn UI ingress for Kong
+            ingress:
+              enabled: true
+              ingressClassName: kong
+              annotations:
+                konghq.com/strip-path: "true"
+              host: longhorn.demo.local
             {{ else if eq .name "velero" }}
             # Velero backup and disaster recovery
             # Disable CRD upgrade hook - incompatible with GitOps (use official parameter)
@@ -363,6 +394,15 @@ spec:
                   template:
                     ttl: "720h"
             snapshotsEnabled: false
+            # Velero UI ingress for Kong
+            serverSecretKeyname: server-certs
+            metrics:
+              enabled: true
+              serviceMonitor:
+                enabled: false
+            schedules: {}
+            expose:
+              nodePort: false
             {{ else if eq .name "jaeger" }}
             # Jaeger distributed tracing with in-memory storage (suitable for KIND)
             provisionDataStore:
