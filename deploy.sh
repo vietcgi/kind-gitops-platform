@@ -343,6 +343,15 @@ fi
 kubectl apply -f "$SCRIPT_DIR/argocd/applicationsets/platform-apps.yaml" > /tmp/applicationset.log 2>&1 &
 APPLICATIONSET_PID=$!
 
+# Apply ArgoCD Configuration Application (manages ArgoCD settings including TLS)
+log_info "Applying ArgoCD Configuration Application..."
+if [ -f "$SCRIPT_DIR/argocd/applications/argocd-config.yaml" ]; then
+    kubectl apply -f "$SCRIPT_DIR/argocd/applications/argocd-config.yaml" > /tmp/argocd-config.log 2>&1 &
+    ARGOCD_CONFIG_PID=$!
+else
+    log_warn "ArgoCD config Application not found: $SCRIPT_DIR/argocd/applications/argocd-config.yaml"
+fi
+
 # Apply Kong ingress routes Application (managed by ArgoCD)
 log_info "Applying Kong Ingress Routes Application..."
 if [ -f "$SCRIPT_DIR/argocd/applications/kong-ingress.yaml" ]; then
@@ -380,6 +389,16 @@ if [ $APPLICATIONSET_STATUS -ne 0 ]; then
     fi
 else
     log_info "ApplicationSet applied successfully"
+fi
+
+if [ -n "$ARGOCD_CONFIG_PID" ]; then
+    wait $ARGOCD_CONFIG_PID
+    if [ $? -ne 0 ]; then
+        log_warn "Failed to apply ArgoCD Config Application. See details:"
+        cat /tmp/argocd-config.log
+    else
+        log_info "ArgoCD Config Application applied successfully"
+    fi
 fi
 
 if [ -n "$KONG_INGRESS_PID" ]; then
