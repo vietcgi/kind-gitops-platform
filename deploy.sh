@@ -6,6 +6,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CLUSTER_NAME="${CLUSTER_NAME:-platform}"
 REPO_URL="https://github.com/vietcgi/kubernetes-platform-stack"
 FORCE_DELETE=false
+ENVIRONMENT="${ENVIRONMENT:-dev}"  # Default environment: dev, prod, staging
 
 # Colors for output (defined early for use in arg parsing)
 RED='\033[0;31m'
@@ -26,7 +27,7 @@ log_error() {
     echo -e "${RED}ERROR${NC}: $1"
 }
 
-# Parse command-line flags
+# Parse command-line arguments
 while [[ $# -gt 0 ]]; do
     case $1 in
         --force)
@@ -34,16 +35,24 @@ while [[ $# -gt 0 ]]; do
             shift
             ;;
         -h|--help)
-            echo "Usage: $0 [OPTIONS]"
+            echo "Usage: $0 [ENVIRONMENT] [OPTIONS]"
+            echo ""
+            echo "Arguments:"
+            echo "  dev|staging|prod  Environment to deploy (default: dev)"
             echo ""
             echo "Options:"
-            echo "  --force      Force delete existing cluster before deploying"
-            echo "  -h, --help   Show this help message"
+            echo "  --force           Force delete existing cluster before deploying"
+            echo "  -h, --help        Show this help message"
             echo ""
             echo "Examples:"
-            echo "  $0                  # Deploy (skip if cluster exists)"
-            echo "  $0 --force          # Force delete and redeploy"
+            echo "  $0                  # Deploy to dev (skip if cluster exists)"
+            echo "  $0 prod             # Deploy to prod"
+            echo "  $0 staging --force  # Force delete and redeploy to staging"
             exit 0
+            ;;
+        dev|staging|prod)
+            ENVIRONMENT="$1"
+            shift
             ;;
         *)
             log_error "Unknown option: $1"
@@ -57,6 +66,7 @@ echo "Kubernetes Platform Stack"
 echo "Helm-Based GitOps Deployment"
 echo "======================================"
 echo ""
+echo "ENVIRONMENT: $ENVIRONMENT"
 if [ "$FORCE_DELETE" = true ]; then
     echo "MODE: Force delete and redeploy"
 else
