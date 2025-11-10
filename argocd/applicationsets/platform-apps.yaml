@@ -410,15 +410,20 @@ spec:
                 annotations:
                   konghq.com/strip-path: "true"
                 hosts:
-                  core: harbor.local
-                  notary: harbor-notary.local
+                  core: harbor.demo.local
+                  notary: harbor-notary.demo.local
             {{ else if eq .name "vault" }}
-            # Vault ingress disabled - chart has template validation issues
+            # Vault with enabled ingress
             ui:
               enabled: true
             server:
               ingress:
-                enabled: false
+                enabled: true
+                ingressClassName: kong
+                annotations:
+                  konghq.com/strip-path: "true"
+                hosts:
+                  - vault.demo.local
             {{ end }}
       destination:
         server: https://kubernetes.default.svc
