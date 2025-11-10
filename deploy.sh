@@ -315,6 +315,19 @@ else
     log_warn "Kong ingress Application not found: $SCRIPT_DIR/argocd/applications/kong-ingress.yaml"
 fi
 
+# Apply NetworkPolicy Applications (managed by ArgoCD)
+log_info "Applying NetworkPolicy Applications..."
+if [ -f "$SCRIPT_DIR/argocd/applications/harbor-network-policies.yaml" ]; then
+    kubectl apply -f "$SCRIPT_DIR/argocd/applications/harbor-network-policies.yaml" &
+else
+    log_warn "Harbor NetworkPolicy Application not found: $SCRIPT_DIR/argocd/applications/harbor-network-policies.yaml"
+fi
+if [ -f "$SCRIPT_DIR/argocd/applications/longhorn-network-policies.yaml" ]; then
+    kubectl apply -f "$SCRIPT_DIR/argocd/applications/longhorn-network-policies.yaml" &
+else
+    log_warn "Longhorn NetworkPolicy Application not found: $SCRIPT_DIR/argocd/applications/longhorn-network-policies.yaml"
+fi
+
 wait  # Wait for all kubectl apply commands to complete
 
 # Step 12: Wait for all applications to be created by ApplicationSet
