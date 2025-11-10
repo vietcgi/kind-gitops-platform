@@ -143,9 +143,9 @@ jobs:
             --set kubeProxyReplacement=true \
             --set k8sServiceHost=kubernetes.default.svc \
             --set k8sServicePort=443 \
-            --wait --timeout=5m 2>&1 || echo "Cilium installation optional"
+            --wait --timeout=10m 2>&1 || echo "Cilium installation optional"
 
-          kubectl wait --for=condition=ready pod -l k8s-app=cilium -n kube-system --timeout=5m 2>&1 || true
+          kubectl wait --for=condition=ready pod -l k8s-app=cilium -n kube-system --timeout=10m 2>&1 || true
 
       # Install Prometheus Stack (monitoring essentials)
       - name: Install Prometheus + Grafana
@@ -159,7 +159,7 @@ jobs:
             --set prometheus.prometheusSpec.retention=1h \
             --set prometheus.prometheusSpec.storageSpec.emptyDir={} \
             --set grafana.persistence.enabled=false \
-            --wait --timeout=5m 2>&1 || echo "Prometheus installation optional"
+            --wait --timeout=10m 2>&1 || echo "Prometheus installation optional"
 
       - name: Upload kubeconfig
         uses: actions/upload-artifact@v4
