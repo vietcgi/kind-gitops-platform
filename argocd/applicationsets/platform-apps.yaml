@@ -217,6 +217,10 @@ spec:
             replicas: 1
             audit:
               replicas: 1
+            # Install CRDs but don't manage them with ArgoCD (operator modifies them)
+            crds:
+              affinity: {}
+              tolerations: []
             {{ else if eq .name "sealed-secrets" }}
             # Sealed Secrets
             replicaCount: 1
@@ -417,6 +421,9 @@ spec:
           - RespectIgnoreDifferences=true
           - SkipDryRunOnMissingResource=true
           - ServerSideApply=true
+        managedNamespaceMetadata:
+          labels: {}
+          annotations: {}
         retry:
           limit: 10
           backoff:
@@ -473,16 +480,14 @@ spec:
           jqPathExpressions:
             - '.spec.rules[] | select(.name | startswith("autogen-"))'
             - '.status'
-        # Gatekeeper CRDs (auto-managed, ignore all gatekeeper.sh CRDs)
+        # Gatekeeper/Kyverno CRDs (auto-managed, ignore labels/annotations that change)
         - group: apiextensions.k8s.io
           kind: CustomResourceDefinition
-          jqPathExpressions:
-            - '.metadata.name | select(endswith(".gatekeeper.sh"))'
-        # Kyverno CRDs (auto-managed)
-        - group: apiextensions.k8s.io
-          kind: CustomResourceDefinition
-          jqPathExpressions:
-            - '.metadata.name | select(endswith(".kyverno.io"))'
+          jsonPointers:
+            - /metadata/labels/app.kubernetes.io~1managed-by
+            - /metadata/labels/gatekeeper.sh~1system
+            - /metadata/annotations/cert-manager.io~1inject-ca-from
+            - /spec/conversion/webhook/clientConfig/caBundle
   goTemplateOptions: ["missingkey=error"]
   templatePatch: |
     metadata:
@@ -490,10 +495,17 @@ spec:
         {{- if .syncWave }}
         argocd.argoproj.io/sync-wave: "{{ .syncWave }}"
         {{- end }}
+        {{- if or (eq .name "gatekeeper") (eq .name "istio") (eq .name "kyverno") (eq .name "velero") }}
+        argocd.argoproj.io/compare-options: "IgnoreExtraneous"
+        {{- end }}
     spec:
       syncPolicy:
         automated:
+          {{- if or (eq .name "gatekeeper") (eq .name "istio") (eq .name "kyverno") (eq .name "velero") }}
+          prune: false
+          {{- else }}
           prune: {{ if eq .syncPolicy "aggressive" }}true{{ else }}false{{ end }}
+          {{- end }}
       # ignoreDifferences are already defined in template.spec, but we can't merge them here in templatePatch
       # The ignoreDifferences rules will apply to all generated applications
 
