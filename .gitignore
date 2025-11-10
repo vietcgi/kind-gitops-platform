@@ -27,3 +27,5 @@ secrets/
 *.tar.gz
 build/
 dist/
+PHASE_4_COMPLETION.md
+IMPLEMENTATION_SUMMARY.md
