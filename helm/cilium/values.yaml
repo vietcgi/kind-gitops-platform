@@ -1,7 +1,7 @@
 # Cilium Helm Chart Values
 # Configured for BGP, kube-proxy replacement, and native LoadBalancer
 
-# Cilium version (v1.18.3 stable - tested with KIND)
+# Cilium version (v1.18.3 stable - currently deployed)
 image:
   repository: quay.io/cilium/cilium
   tag: v1.18.3
