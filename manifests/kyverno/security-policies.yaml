@@ -1,0 +1,269 @@
+---
+# Kyverno Security Policies
+# Enforce Pod Security Standards and best practices
+
+# Policy 1: Require Non-Root User
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: require-non-root
+  labels:
+    app.kubernetes.io/name: kyverno
+    app.kubernetes.io/component: security
+spec:
+  validationFailureAction: audit
+  rules:
+  - name: check-runAsNonRoot
+    match:
+      resources:
+        kinds:
+        - Pod
+    validate:
+      message: "Running as root is not allowed"
+      pattern:
+        spec:
+          containers:
+          - securityContext:
+              runAsNonRoot: true
+
+---
+# Policy 2: Disallow Privilege Escalation
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: restrict-privilege-escalation
+  labels:
+    app.kubernetes.io/name: kyverno
+    app.kubernetes.io/component: security
+spec:
+  validationFailureAction: audit
+  rules:
+  - name: check-allowPrivilegeEscalation
+    match:
+      resources:
+        kinds:
+        - Pod
+    validate:
+      message: "Privilege escalation is not allowed"
+      pattern:
+        spec:
+          containers:
+          - securityContext:
+              allowPrivilegeEscalation: false
+
+---
+# Policy 3: Drop ALL Capabilities
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: drop-all-capabilities
+  labels:
+    app.kubernetes.io/name: kyverno
+    app.kubernetes.io/component: security
+spec:
+  validationFailureAction: audit
+  rules:
+  - name: check-droppedCapabilities
+    match:
+      resources:
+        kinds:
+        - Pod
+    validate:
+      message: "ALL capabilities must be dropped"
+      pattern:
+        spec:
+          containers:
+          - securityContext:
+              capabilities:
+                drop:
+                - ALL
+
+---
+# Policy 4: Require Read-Only Root Filesystem
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: require-readonly-filesystem
+  labels:
+    app.kubernetes.io/name: kyverno
+    app.kubernetes.io/component: security
+spec:
+  validationFailureAction: audit
+  rules:
+  - name: check-readOnlyRootFilesystem
+    match:
+      resources:
+        kinds:
+        - Pod
+    validate:
+      message: "Root filesystem must be read-only"
+      pattern:
+        spec:
+          containers:
+          - securityContext:
+              readOnlyRootFilesystem: true
+
+---
+# Policy 5: Require Resource Limits
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: require-resource-limits
+  labels:
+    app.kubernetes.io/name: kyverno
+    app.kubernetes.io/component: security
+spec:
+  validationFailureAction: audit
+  rules:
+  - name: validate-cpu-limits
+    match:
+      resources:
+        kinds:
+        - Pod
+        excludeResources:
+          namespaces:
+          - kube-system
+          - kube-public
+          - kube-node-lease
+    validate:
+      message: "CPU and memory limits required"
+      pattern:
+        spec:
+          containers:
+          - resources:
+              limits:
+                memory: "?*"
+                cpu: "?*"
+
+---
+# Policy 6: Restrict Image Registries
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: restrict-image-registries
+  labels:
+    app.kubernetes.io/name: kyverno
+    app.kubernetes.io/component: security
+spec:
+  validationFailureAction: audit
+  rules:
+  - name: validate-registries
+    match:
+      resources:
+        kinds:
+        - Pod
+        excludeResources:
+          namespaces:
+          - kube-system
+          - kube-public
+    validate:
+      message: "Only images from docker.io, quay.io, ghcr.io allowed"
+      pattern:
+        spec:
+          containers:
+          - image: "docker.io/* | quay.io/* | ghcr.io/* | *:5000/*"
+
+---
+# Policy 7: Disallow Latest Tag
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: disallow-latest-tag
+  labels:
+    app.kubernetes.io/name: kyverno
+    app.kubernetes.io/component: security
+spec:
+  validationFailureAction: audit
+  rules:
+  - name: check-image-tag
+    match:
+      resources:
+        kinds:
+        - Pod
+    validate:
+      message: "Using 'latest' tag is not allowed"
+      pattern:
+        spec:
+          containers:
+          - image: "!*:latest"
+
+---
+# Policy 8: Require Health Probes
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: require-health-probes
+  labels:
+    app.kubernetes.io/name: kyverno
+    app.kubernetes.io/component: reliability
+spec:
+  validationFailureAction: audit
+  rules:
+  - name: check-liveness-probe
+    match:
+      resources:
+        kinds:
+        - Deployment
+        - StatefulSet
+        excludeResources:
+          namespaces:
+          - kube-system
+          - kube-public
+    validate:
+      message: "Liveness and readiness probes required"
+      pattern:
+        spec:
+          template:
+            spec:
+              containers:
+              - livenessProbe: {}
+                readinessProbe: {}
+
+---
+# Policy 9: Require Network Policy
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: require-network-policy-label
+  labels:
+    app.kubernetes.io/name: kyverno
+    app.kubernetes.io/component: security
+spec:
+  validationFailureAction: audit
+  rules:
+  - name: check-network-policy
+    match:
+      resources:
+        kinds:
+        - Namespace
+    validate:
+      message: "Namespace should have network policies applied"
+      pattern:
+        metadata:
+          labels:
+            network-policies-enabled: "true"
+
+---
+# Policy 10: Disallow Privileged Containers
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: disallow-privileged-containers
+  labels:
+    app.kubernetes.io/name: kyverno
+    app.kubernetes.io/component: security
+spec:
+  validationFailureAction: audit
+  rules:
+  - name: check-privileged
+    match:
+      resources:
+        kinds:
+        - Pod
+    validate:
+      message: "Privileged containers are not allowed"
+      pattern:
+        spec:
+          containers:
+          - securityContext:
+              privileged: false

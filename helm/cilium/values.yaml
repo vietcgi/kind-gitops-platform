@@ -87,15 +87,16 @@ prometheus:
     interval: 30s
 
 # Network Policy engine
-# NOTE: Policy enforcement disabled (set to 'none') to avoid circular dependency
-# that blocks DNS resolution in development environments
-# For production, set to 'default' and implement NetworkPolicies
+# ENABLED: DNS bootstrap fixed with explicit allow rules in core-policies.yaml
+# All namespaces have allow-dns policy for CoreDNS on port 53 (UDP/TCP)
+# Policy enforcement will block all undefined communication (default-deny)
 networkPolicy:
-  enabled: false
+  enabled: true
 
 # Policy Enforcement Mode
-# Set to 'none' to disable policy enforcement but keep NetworkPolicy CRDs available
-policyEnforcementMode: "none"
+# Set to 'default' to enforce network policies cluster-wide
+# Requires all inter-pod communication to be explicitly allowed via NetworkPolicy CRDs
+policyEnforcementMode: "default"
 
 # Pod Execution Spaces
 podExecutionSpaces:

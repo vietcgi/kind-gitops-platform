@@ -1,0 +1,40 @@
+---
+# Vault TLS Certificate
+# Automatically generated and renewed by Cert-Manager
+# Uses self-signed issuer for development, change to Let's Encrypt for production
+
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: vault-tls
+  namespace: vault
+  labels:
+    app.kubernetes.io/name: vault
+    app.kubernetes.io/component: security
+spec:
+  secretName: vault-tls
+  duration: 2160h  # 90 days
+  renewBefore: 720h  # 30 days before expiration
+  commonName: "vault.vault.svc.cluster.local"
+  dnsNames:
+  - "vault"
+  - "vault.vault"
+  - "vault.vault.svc"
+  - "vault.vault.svc.cluster.local"
+  issuerRef:
+    name: selfsigned-issuer
+    kind: Issuer
+
+---
+# Self-Signed Issuer for Development
+# For production, use ClusterIssuer with Let's Encrypt
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: selfsigned-issuer
+  namespace: vault
+  labels:
+    app.kubernetes.io/name: cert-manager
+    app.kubernetes.io/component: issuer
+spec:
+  selfSigned: {}

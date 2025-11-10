@@ -1,0 +1,142 @@
+---
+# System Namespace Network Policies
+# Security policies for kube-system and other system namespaces
+
+# Allow API Server webhook communication (cert-manager, vault)
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: allow-apiserver-webhook
+  namespace: kube-system
+  labels:
+    app.kubernetes.io/name: network-policies
+    app.kubernetes.io/component: system
+spec:
+  endpointSelector:
+    matchLabels:
+      component: kube-apiserver
+  description: "Allow API server to call webhooks on port 443"
+  egress:
+  # Allow to any HTTPS endpoint (for webhooks)
+  - toPorts:
+    - ports:
+      - port: "443"
+        protocol: TCP
+
+---
+# Kubelet API access from API Server
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: allow-kubelet-access
+  namespace: kube-system
+  labels:
+    app.kubernetes.io/name: network-policies
+    app.kubernetes.io/component: system
+spec:
+  endpointSelector:
+    matchLabels:
+      component: kubelet
+  description: "Allow kubelet API access from system pods"
+  ingress:
+  - fromEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: kube-system
+    toPorts:
+    - ports:
+      - port: "10250"
+        protocol: TCP
+
+---
+# Vault Namespace Network Policy
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: allow-same-namespace
+  namespace: vault
+  labels:
+    app.kubernetes.io/name: network-policies
+    app.kubernetes.io/component: core
+spec:
+  endpointSelector: {}
+  description: "Allow pod-to-pod communication within vault namespace"
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - fromEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: vault
+    toPorts:
+    - ports:
+      - port: "8200"
+        protocol: TCP
+      - port: "8201"
+        protocol: TCP
+  egress:
+  - toEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: vault
+  # Allow DNS
+  - toEndpoints:
+    - matchLabels:
+        k8s-app: coredns
+    toPorts:
+    - ports:
+      - port: "53"
+        protocol: UDP
+  # Allow Kubernetes API
+  - toEndpoints:
+    - matchLabels:
+        component: kube-apiserver
+    toPorts:
+    - ports:
+      - port: "443"
+        protocol: TCP
+
+---
+# Security Namespace Network Policy
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: allow-same-namespace
+  namespace: security
+  labels:
+    app.kubernetes.io/name: network-policies
+    app.kubernetes.io/component: core
+spec:
+  endpointSelector: {}
+  description: "Allow pod-to-pod communication within security namespace"
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - fromEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: security
+    toPorts:
+    - ports:
+      - port: "8080"
+        protocol: TCP  # Falco metrics
+      - port: "5985"
+        protocol: TCP  # Falco gRPC
+  egress:
+  - toEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: security
+  # Allow DNS
+  - toEndpoints:
+    - matchLabels:
+        k8s-app: coredns
+    toPorts:
+    - ports:
+      - port: "53"
+        protocol: UDP
+  # Allow Kubernetes API
+  - toEndpoints:
+    - matchLabels:
+        component: kube-apiserver
+    toPorts:
+    - ports:
+      - port: "443"
+        protocol: TCP

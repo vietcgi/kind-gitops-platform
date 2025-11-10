@@ -1,0 +1,194 @@
+---
+# Prometheus Alert Rules
+# Comprehensive monitoring for platform reliability, security, and operations
+
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: platform-stack-alerts
+  namespace: monitoring
+  labels:
+    prometheus: kube-prometheus
+    app.kubernetes.io/name: prometheus
+spec:
+  groups:
+  - name: cluster-health
+    interval: 30s
+    rules:
+    - alert: NodeNotReady
+      expr: kube_node_status_condition{condition="Ready",status="true"} == 0
+      for: 5m
+      labels:
+        severity: critical
+        component: cluster
+      annotations:
+        summary: "Node {{ $labels.node }} is not ready"
+        description: "Node has been in NotReady state for 5+ minutes"
+
+    - alert: NodeMemoryPressure
+      expr: kube_node_status_condition{condition="MemoryPressure",status="true"} == 1
+      for: 5m
+      labels:
+        severity: warning
+        component: cluster
+      annotations:
+        summary: "Memory pressure on node {{ $labels.node }}"
+        description: "Node is experiencing memory pressure"
+
+    - alert: PodCrashLooping
+      expr: rate(kube_pod_container_status_restarts_total[30m]) > 0.1
+      for: 5m
+      labels:
+        severity: critical
+        component: pod
+      annotations:
+        summary: "Pod {{ $labels.namespace }}/{{ $labels.pod }} is crash looping"
+        description: "Pod has restarted {{ $value }} times in 30 minutes"
+
+    - alert: PodNotHealthy
+      expr: min_over_time(sum by (namespace, pod) (kube_pod_status_phase{phase=~"Pending|Unknown|Failed"})[15m:1m]) > 0
+      for: 15m
+      labels:
+        severity: critical
+        component: pod
+      annotations:
+        summary: "Pod {{ $labels.namespace }}/{{ $labels.pod }} is unhealthy"
+        description: "Pod in Pending/Unknown/Failed for 15+ minutes"
+
+    - alert: ContainerOOMKiller
+      expr: kube_pod_container_status_last_terminated_reason{reason="OOMKilled"} == 1
+      for: 1m
+      labels:
+        severity: critical
+        component: pod
+      annotations:
+        summary: "Container {{ $labels.container }} in {{ $labels.namespace }}/{{ $labels.pod }} was OOM killed"
+        description: "Container exceeded memory limit"
+
+  - name: certificate-health
+    interval: 1h
+    rules:
+    - alert: CertificateExpiringSoon
+      expr: certmanager_certificate_expiration_timestamp_seconds - time() < 7776000
+      for: 1h
+      labels:
+        severity: warning
+        component: certificates
+      annotations:
+        summary: "Certificate {{ $labels.name }} expiring in 90 days"
+        description: "Certificate will expire soon. Plan renewal."
+
+    - alert: CertificateExpiringCritical
+      expr: certmanager_certificate_expiration_timestamp_seconds - time() < 604800
+      for: 1h
+      labels:
+        severity: critical
+        component: certificates
+      annotations:
+        summary: "Certificate {{ $labels.name }} expiring in 7 days"
+        description: "Certificate expires critically soon. Renew immediately."
+
+  - name: storage-health
+    interval: 30s
+    rules:
+    - alert: PersistentVolumeClaimCapacityLow
+      expr: kubelet_volume_stats_available_bytes / kubelet_volume_stats_capacity_bytes < 0.1
+      for: 5m
+      labels:
+        severity: warning
+        component: storage
+      annotations:
+        summary: "PVC {{ $labels.namespace }}/{{ $labels.persistentvolumeclaim }} capacity low"
+        description: "Less than 10% space remaining"
+
+    - alert: PersistentVolumeClaimCapacityCritical
+      expr: kubelet_volume_stats_available_bytes / kubelet_volume_stats_capacity_bytes < 0.05
+      for: 1m
+      labels:
+        severity: critical
+        component: storage
+      annotations:
+        summary: "PVC {{ $labels.namespace }}/{{ $labels.persistentvolumeclaim }} capacity critical"
+        description: "Less than 5% space remaining"
+
+  - name: observability-health
+    interval: 30s
+    rules:
+    - alert: PrometheusConfigReloadFailed
+      expr: increase(prometheus_config_last_reload_successful{job="prometheus"}[5m]) == 0
+      for: 5m
+      labels:
+        severity: warning
+        component: prometheus
+      annotations:
+        summary: "Prometheus config reload failed"
+        description: "Prometheus cannot reload configuration"
+
+    - alert: GrafanaDown
+      expr: up{job="grafana"} == 0
+      for: 5m
+      labels:
+        severity: critical
+        component: observability
+      annotations:
+        summary: "Grafana is down"
+        description: "Grafana service is unreachable"
+
+  - name: argocd-health
+    interval: 30s
+    rules:
+    - alert: ArgoCDAppSyncFailure
+      expr: argocd_app_sync_total{sync_status="Failed"} > 0
+      for: 15m
+      labels:
+        severity: warning
+        component: argocd
+      annotations:
+        summary: "ArgoCD app {{ $labels.name }} sync failed"
+        description: "Application sync has been failing for 15+ minutes"
+
+    - alert: ArgoCDAppHealthDegraded
+      expr: argocd_app_info{health_status="Degraded"} == 1
+      for: 10m
+      labels:
+        severity: warning
+        component: argocd
+      annotations:
+        summary: "ArgoCD app {{ $labels.name }} health degraded"
+        description: "Application health status is Degraded"
+
+  - name: resource-utilization
+    interval: 30s
+    rules:
+    - alert: PodMemoryUsageHigh
+      expr: (sum(container_memory_working_set_bytes) by (namespace, pod) / sum(container_spec_memory_limit_bytes) by (namespace, pod)) > 0.9
+      for: 10m
+      labels:
+        severity: warning
+        component: resources
+      annotations:
+        summary: "Pod {{ $labels.namespace }}/{{ $labels.pod }} memory usage high"
+        description: "Memory usage above 90% of limit"
+
+    - alert: NodeMemoryUsageHigh
+      expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) > 0.85
+      for: 10m
+      labels:
+        severity: warning
+        component: resources
+      annotations:
+        summary: "Node {{ $labels.node }} memory usage high"
+        description: "Memory usage above 85%"
+
+  - name: vault-health
+    interval: 30s
+    rules:
+    - alert: VaultSealed
+      expr: vault_core_unsealed == 0
+      for: 5m
+      labels:
+        severity: critical
+        component: vault
+      annotations:
+        summary: "Vault is sealed"
+        description: "Vault has been sealed for 5+ minutes"
