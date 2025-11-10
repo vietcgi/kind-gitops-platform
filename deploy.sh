@@ -157,6 +157,11 @@ if kubectl get deployment coredns -n kube-system &>/dev/null 2>&1; then
     kubectl patch deployment coredns -n kube-system --type='json' -p='[
       {
         "op": "replace",
+        "path": "/spec/replicas",
+        "value": 1
+      },
+      {
+        "op": "replace",
         "path": "/spec/template/spec/containers/0/resources",
         "value": {
           "limits": {
@@ -170,6 +175,7 @@ if kubectl get deployment coredns -n kube-system &>/dev/null 2>&1; then
         }
       }
     ]' 2>/dev/null || log_warn "Could not optimize CoreDNS resources"
+    log_info "CoreDNS scaled to 1 replica for laptop deployment"
 else
     log_warn "CoreDNS deployment (coredns) not found, skipping resource optimization"
 fi

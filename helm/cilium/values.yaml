@@ -55,6 +55,10 @@ bpf:
   # Program Pin Path
   mapShare: true
 
+# Cilium Operator replicas (set to 1 for laptop deployment)
+operator:
+  replicas: 1
+
 # Cluster networking
 cluster:
   name: platform
