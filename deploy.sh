@@ -136,6 +136,8 @@ kubectl create namespace sealed-secrets --dry-run=client -o yaml | kubectl apply
 kubectl create namespace gatekeeper-system --dry-run=client -o yaml | kubectl apply -f -
 kubectl create namespace audit-logging --dry-run=client -o yaml | kubectl apply -f -
 kubectl create namespace infrastructure --dry-run=client -o yaml | kubectl apply -f -
+kubectl create namespace longhorn-system --dry-run=client -o yaml | kubectl apply -f -
+kubectl create namespace harbor --dry-run=client -o yaml | kubectl apply -f -
 
 # Step 4.5: Create PostgreSQL secret if it doesn't exist
 log_info "Creating PostgreSQL secret..."
@@ -368,10 +370,8 @@ else
     log_warn "Gatekeeper NetworkPolicy not found: $SCRIPT_DIR/manifests/gatekeeper/network-policy.yaml"
 fi
 
-wait  # Wait for all kubectl apply commands to complete
-
 # Wait for background jobs and check for errors
-wait $APPLICATIONSET_PID
+wait $APPLICATIONSET_PID 2>/dev/null || true
 if [ $? -ne 0 ]; then
     log_error "Failed to apply ApplicationSet. See details:"
     cat /tmp/applicationset.log
