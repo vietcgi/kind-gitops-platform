@@ -92,6 +92,9 @@ argo-cd:
 
   # ArgoCD configs
   configs:
+    # Command parameters for ArgoCD server
+    params:
+      server.insecure: "true"  # Enable HTTP-only mode for Kong ingress
     # Initial admin password (use Sealed Secrets for production)
     # To set the admin password securely, use one of these approaches:
     # 1. Create a Sealed Secret: https://github.com/bitnami-labs/sealed-secrets
