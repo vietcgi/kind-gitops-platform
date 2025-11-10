@@ -132,9 +132,42 @@ jobs:
           timeout 5m helm install cilium cilium/cilium \
             --namespace kube-system \
             --set debug.verbose=false \
+            --set hubble.enabled=true \
+            --set hubble.relay.enabled=true \
+            --set hubble.ui.enabled=true \
             --wait=false 2>&1 || echo "Cilium installation optional"
 
           sleep 10
+
+      # Install Hubble UI Ingress
+      - name: Create Hubble UI Ingress
+        env:
+          KUBECONFIG: /tmp/kubeconfig
+        run: |
+          kubectl create namespace hubble-ui 2>/dev/null || true
+          cat <<EOF | kubectl apply -f -
+          apiVersion: networking.k8s.io/v1
+          kind: Ingress
+          metadata:
+            name: hubble-ui-ingress
+            namespace: kube-system
+            annotations:
+              konghq.com/strip-path: "true"
+          spec:
+            ingressClassName: kong
+            rules:
+            - host: hubble-ui.demo.local
+              http:
+                paths:
+                - path: /
+                  pathType: Prefix
+                  backend:
+                    service:
+                      name: hubble-ui
+                      port:
+                        number: 80
+          EOF
+          sleep 5
 
       # Install Prometheus Stack (monitoring essentials)
       - name: Install Prometheus + Grafana
