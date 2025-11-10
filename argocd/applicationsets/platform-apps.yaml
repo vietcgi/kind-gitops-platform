@@ -194,13 +194,32 @@ spec:
         helm:
           releaseName: '{{ .name }}'
           values: |
+            {{- if not (or (eq .name "cert-manager") (eq .name "falco") (eq .name "gatekeeper") (eq .name "sealed-secrets") (eq .name "istio") (eq .name "kyverno") (eq .name "tempo")) }}
             # Default minimal replicas for laptop deployment
             replicaCount: 1
             replicas: 1
+            {{- end }}
             {{ if eq .name "cert-manager" }}
             # Enable CRD installation for cert-manager
             crds:
               enabled: true
+            # cert-manager specific replica settings
+            replicaCount: 1
+            webhook:
+              replicaCount: 1
+            cainjector:
+              replicaCount: 1
+            {{ else if eq .name "falco" }}
+            # Falco runtime security
+            replicaCount: 1
+            {{ else if eq .name "gatekeeper" }}
+            # Gatekeeper policy enforcement
+            replicas: 1
+            audit:
+              replicas: 1
+            {{ else if eq .name "sealed-secrets" }}
+            # Sealed Secrets
+            replicaCount: 1
             {{ else if eq .name "prometheus" }}
             # Kube-prometheus-stack: Using v70.10.0 to avoid CRD annotation size issues
             prometheus:
@@ -254,6 +273,24 @@ spec:
             loki:
               ingress:
                 enabled: false
+            {{ else if eq .name "istio" }}
+            # Istio service mesh
+            pilot:
+              replicaCount: 1
+            {{ else if eq .name "kyverno" }}
+            # Kyverno policy engine
+            replicaCount: 1
+            admissionController:
+              replicas: 1
+            backgroundController:
+              replicas: 1
+            cleanupController:
+              replicas: 1
+            reportsController:
+              replicas: 1
+            {{ else if eq .name "tempo" }}
+            # Tempo distributed tracing
+            replicas: 1
             {{ else if eq .name "longhorn" }}
             # Longhorn persistent storage
             # Disable pre-upgrade checker Job for GitOps compatibility (official Longhorn param)
@@ -356,8 +393,6 @@ spec:
             server:
               ingress:
                 enabled: false
-            {{ else }}
-            {}
             {{ end }}
       destination:
         server: https://kubernetes.default.svc
