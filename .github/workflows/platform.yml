@@ -138,14 +138,13 @@ jobs:
         run: |
           helm repo add cilium https://helm.cilium.io
           helm repo update
-          helm install cilium cilium/cilium --version 1.18.3 \
+          timeout 5m helm install cilium cilium/cilium --version 1.15.6 \
             --namespace kube-system \
-            --set kubeProxyReplacement=true \
-            --set k8sServiceHost=kubernetes.default.svc \
-            --set k8sServicePort=443 \
-            --wait --timeout=10m 2>&1 || echo "Cilium installation optional"
+            --set kubeProxyReplacement=false \
+            --set cni.chainingMode=none \
+            --wait=false 2>&1 || echo "Cilium installation optional"
 
-          kubectl wait --for=condition=ready pod -l k8s-app=cilium -n kube-system --timeout=10m 2>&1 || true
+          sleep 10
 
       # Install Prometheus Stack (monitoring essentials)
       - name: Install Prometheus + Grafana
