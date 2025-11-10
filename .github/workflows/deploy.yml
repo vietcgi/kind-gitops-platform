@@ -1,0 +1,63 @@
+name: Deploy - Staging and Production
+
+on:
+  push:
+    branches:
+      - staging
+      - main
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Environment to deploy to
+        required: true
+        default: staging
+        type: choice
+        options:
+          - staging
+          - prod
+
+jobs:
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/staging'
+    environment:
+      name: staging
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate deployment
+        run: chmod +x tests/staging-readiness.sh && ./tests/staging-readiness.sh || true
+      - name: Deploy to staging
+        env:
+          KUBE_CONFIG: secrets.STAGING_KUBE_CONFIG
+        run: |
+          mkdir -p ~/.kube
+          chmod +x deploy.sh
+          ./deploy.sh staging
+      - name: Verify deployment
+        run: kubectl get applications -n argocd || true
+
+  deploy-prod:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    environment:
+      name: production
+    steps:
+      - uses: actions/checkout@v4
+      - name: Pre-deployment checks
+        run: chmod +x tests/prod-readiness.sh && ./tests/prod-readiness.sh || true
+      - name: Deploy to production
+        env:
+          KUBE_CONFIG: secrets.PROD_KUBE_CONFIG
+        run: |
+          mkdir -p ~/.kube
+          chmod +x deploy.sh
+          ./deploy.sh prod
+      - name: Post-deployment validation
+        run: |
+          kubectl get applications -n argocd
+          kubectl get pods -A | grep -E 'Running|Pending'
+      - name: Deployment summary
+        if: success()
+        run: echo "Production deployment completed successfully"

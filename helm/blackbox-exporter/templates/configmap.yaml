@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "blackbox-exporter.fullname" . }}
+  namespace: {{ .Release.Namespace | quote }}
+  labels:
+    {{- include "blackbox-exporter.labels" . | nindent 4 }}
+data:
+  blackbox.yml: |
+    modules:
+      {{- range $probe, $config := .Values.probes }}
+      {{ $probe }}:
+        {{- toYaml $config | nindent 8 }}
+      {{- end }}

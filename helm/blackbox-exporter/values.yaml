@@ -1,0 +1,194 @@
+# Blackbox Exporter - Synthetic Monitoring
+# Monitors endpoints, DNS, TLS certificates, TCP/ICMP connectivity
+
+image:
+  repository: prom/blackbox-exporter
+  tag: v0.25.0
+  pullPolicy: IfNotPresent
+
+replicas: 2
+
+service:
+  type: ClusterIP
+  port: 9115
+  targetPort: 9115
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "9115"
+
+serviceMonitor:
+  enabled: true
+  interval: 60s
+  namespace: monitoring
+  scrapeTimeout: 30s
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    cpu: 200m
+    memory: 256Mi
+
+# Probes configuration (ConfigMap)
+# Defines HTTP, TCP, DNS, ICMP probe types
+probes:
+  # HTTP probes
+  http_2xx:
+    prober: http
+    timeout: 10s
+    http:
+      valid_http_versions: ["HTTP/1.1", "HTTP/2.0"]
+      valid_status_codes: [200, 201, 202, 204, 301, 302, 304]
+      method: GET
+      no_follow_redirects: false
+      preferred_ip_protocol: ip4
+      tls_config:
+        insecure_skip_verify: true
+
+  http_post_2xx:
+    prober: http
+    timeout: 10s
+    http:
+      method: POST
+      valid_status_codes: [200, 201, 202, 204]
+      preferred_ip_protocol: ip4
+
+  # HTTPS probes with certificate validation
+  https_2xx:
+    prober: http
+    timeout: 10s
+    http:
+      method: GET
+      valid_status_codes: [200, 201, 202, 204, 301, 302, 304]
+      preferred_ip_protocol: ip4
+
+  https_cert_valid:
+    prober: http
+    timeout: 10s
+    http:
+      method: GET
+      preferred_ip_protocol: ip4
+      tls_config:
+        insecure_skip_verify: false
+
+  # TCP probes
+  tcp_connect:
+    prober: tcp
+    timeout: 10s
+    tcp:
+      preferred_ip_protocol: ip4
+
+  # DNS probes
+  dns_a:
+    prober: dns
+    timeout: 10s
+    dns:
+      preferred_ip_protocol: ip4
+      query_name: kubernetes.default.svc.cluster.local
+      query_type: A
+
+  dns_mx:
+    prober: dns
+    timeout: 10s
+    dns:
+      query_type: MX
+
+  # ICMP probe
+  icmp:
+    prober: icmp
+    timeout: 10s
+    icmp:
+      preferred_ip_protocol: ip4
+
+# Synthetic test targets
+# These are monitored by Prometheus via Blackbox Exporter
+testTargets:
+  # API endpoints
+  - name: kubernetes-api
+    endpoint: "https://kubernetes.default.svc:443"
+    probe: https_2xx
+    interval: 30s
+
+  - name: argocd-server
+    endpoint: "https://argocd-server.argocd.svc:443"
+    probe: https_2xx
+    interval: 60s
+
+  - name: grafana
+    endpoint: "http://kube-prometheus-stack-grafana.monitoring.svc:80"
+    probe: http_2xx
+    interval: 60s
+
+  - name: prometheus
+    endpoint: "http://kube-prometheus-stack-prometheus.monitoring.svc:9090"
+    probe: http_2xx
+    interval: 60s
+
+  - name: vault
+    endpoint: "https://vault.vault.svc:8200"
+    probe: https_2xx
+    interval: 60s
+
+  # DNS resolution tests
+  - name: coredns-dns
+    endpoint: "coredns.kube-system.svc.cluster.local"
+    probe: dns_a
+    interval: 60s
+
+  - name: external-dns-google
+    endpoint: "google.com"
+    probe: dns_a
+    interval: 300s
+
+  # TCP connectivity tests
+  - name: etcd-tcp
+    endpoint: "127.0.0.1:2379"
+    probe: tcp_connect
+    interval: 60s
+
+  # ICMP connectivity tests (if ICMP allowed)
+  - name: gateway-icmp
+    endpoint: "127.0.0.1"
+    probe: icmp
+    interval: 300s
+
+# Pod security context
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 65534
+  fsGroup: 65534
+
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+    - ALL
+  readOnlyRootFilesystem: true
+
+# Tolerations for pod affinity
+tolerations: []
+
+# Node affinity
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+    - weight: 100
+      podAffinityTerm:
+        labelSelector:
+          matchExpressions:
+          - key: app.kubernetes.io/name
+            operator: In
+            values:
+            - blackbox-exporter
+        topologyKey: kubernetes.io/hostname
+
+# ServiceMonitor configuration for Prometheus
+prometheus:
+  enabled: true
+  namespace: monitoring
+
+# Alerting rules
+alertRules:
+  enabled: true
+  # Alerts for endpoint failures

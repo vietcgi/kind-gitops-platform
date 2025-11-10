@@ -166,6 +166,16 @@ spec:
         group: observability
         syncWave: 2
 
+      # Synthetic Monitoring - Endpoint Availability
+      - name: blackbox-exporter
+        namespace: monitoring
+        repoURL: https://github.com/vietcgi/kubernetes-platform-stack
+        chart: ./helm/blackbox-exporter
+        targetRevision: main
+        syncPolicy: aggressive
+        group: observability
+        syncWave: 2
+
       # Enterprise Features - Container Registry
       - name: harbor
         namespace: harbor

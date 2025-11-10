@@ -1,0 +1,195 @@
+---
+# Prometheus Probes for Synthetic Monitoring
+# Tests availability and performance of critical endpoints
+# Scrape results stored in Prometheus metrics from Blackbox Exporter
+
+apiVersion: monitoring.coreos.com/v1
+kind: ScrapeConfig
+metadata:
+  name: synthetic-monitoring-probes
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: prometheus
+    app.kubernetes.io/component: synthetic-monitoring
+spec:
+  jobName: 'blackbox-synthetic'
+  scrapeInterval: 60s
+  scrapeTimeout: 30s
+  metrics_path: /probe
+  scheme: http
+  
+  # Service targets (in-cluster)
+  static_configs:
+  # Kubernetes API
+  - targets:
+    - "https://kubernetes.default.svc:443"
+    labels:
+      __param_module: https_2xx
+      endpoint_type: api
+      endpoint_name: kubernetes-api
+
+  # ArgoCD
+  - targets:
+    - "https://argocd-server.argocd.svc:443"
+    labels:
+      __param_module: https_2xx
+      endpoint_type: gitops
+      endpoint_name: argocd-server
+
+  # Grafana
+  - targets:
+    - "http://kube-prometheus-stack-grafana.monitoring.svc:80"
+    labels:
+      __param_module: http_2xx
+      endpoint_type: observability
+      endpoint_name: grafana
+
+  # Prometheus
+  - targets:
+    - "http://kube-prometheus-stack-prometheus.monitoring.svc:9090"
+    labels:
+      __param_module: http_2xx
+      endpoint_type: observability
+      endpoint_name: prometheus
+
+  # Vault
+  - targets:
+    - "https://vault.vault.svc:8200"
+    labels:
+      __param_module: https_2xx
+      endpoint_type: secrets
+      endpoint_name: vault
+
+  # DNS Probes
+  - targets:
+    - "coredns.kube-system.svc.cluster.local"
+    labels:
+      __param_module: dns_a
+      endpoint_type: dns
+      endpoint_name: coredns
+
+  # External DNS (google.com)
+  - targets:
+    - "google.com"
+    labels:
+      __param_module: dns_a
+      endpoint_type: dns
+      endpoint_name: external-dns-google
+
+  # TCP Connectivity Tests
+  - targets:
+    - "127.0.0.1:2379"
+    labels:
+      __param_module: tcp_connect
+      endpoint_type: storage
+      endpoint_name: etcd
+
+  # Relabel configurations
+  relabel_configs:
+  # Use Blackbox Exporter service
+  - source_labels: [__address__]
+    target_label: __param_target
+  - source_labels: [__param_target]
+    target_label: instance
+  - target_label: __address__
+    replacement: "blackbox-exporter.monitoring.svc:9115"
+
+---
+# Recording Rules for Synthetic Monitoring Metrics
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: synthetic-monitoring
+  namespace: monitoring
+  labels:
+    prometheus: kube-prometheus
+    app.kubernetes.io/name: prometheus
+spec:
+  groups:
+  - name: synthetic-monitoring-metrics
+    interval: 60s
+    rules:
+    # Endpoint availability percentage
+    - record: synthetic:endpoint:availability
+      expr: |
+        (count(probe_success{endpoint_type!=""}) by (endpoint_name)
+        / on (endpoint_name)
+        count(probe_success{endpoint_type!=""}) by (endpoint_name, endpoint_type) * 100)
+
+    # Endpoint latency (p95)
+    - record: synthetic:endpoint:latency:p95
+      expr: |
+        histogram_quantile(0.95, 
+          rate(probe_duration_seconds_bucket[5m]))
+
+    # Certificate expiration days remaining
+    - record: synthetic:certificate:expiration:days
+      expr: |
+        (probe_ssl_earliest_cert_expiry - time()) / 86400
+
+    # HTTP status code tracking
+    - record: synthetic:http:status:code
+      expr: |
+        probe_http_status_code{endpoint_type="api"}
+
+---
+# Grafana Dashboard for Synthetic Monitoring (ConfigMap)
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: synthetic-monitoring-dashboard
+  namespace: monitoring
+  labels:
+    grafana_dashboard: "1"
+    app.kubernetes.io/name: grafana
+data:
+  synthetic-monitoring.json: |
+    {
+      "dashboard": {
+        "title": "Synthetic Monitoring - Endpoint Availability",
+        "uid": "synthetic-monitoring",
+        "timezone": "browser",
+        "panels": [
+          {
+            "title": "Endpoint Availability",
+            "targets": [
+              {
+                "expr": "synthetic:endpoint:availability",
+                "legendFormat": "{{ endpoint_name }}"
+              }
+            ],
+            "type": "graph"
+          },
+          {
+            "title": "Response Latency (p95)",
+            "targets": [
+              {
+                "expr": "synthetic:endpoint:latency:p95",
+                "legendFormat": "{{ endpoint_name }}"
+              }
+            ],
+            "type": "graph"
+          },
+          {
+            "title": "Certificate Expiration (Days)",
+            "targets": [
+              {
+                "expr": "synthetic:certificate:expiration:days",
+                "legendFormat": "{{ instance }}"
+              }
+            ],
+            "type": "graph"
+          },
+          {
+            "title": "Failed Probes",
+            "targets": [
+              {
+                "expr": "probe_success == 0",
+                "legendFormat": "{{ instance }}"
+              }
+            ],
+            "type": "table"
+          }
+        ]
+      }
+    }

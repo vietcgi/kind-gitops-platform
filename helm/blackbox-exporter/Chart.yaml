@@ -1,0 +1,17 @@
+apiVersion: v2
+name: blackbox-exporter
+description: Blackbox Exporter for synthetic monitoring of endpoints
+type: application
+version: 1.8.0
+appVersion: 0.25.0
+home: https://github.com/prometheus/blackbox_exporter
+sources:
+  - https://github.com/prometheus/blackbox_exporter
+keywords:
+  - monitoring
+  - synthetic
+  - endpoint
+  - health-check
+maintainers:
+  - name: Platform Engineering
+    email: platform@example.com
