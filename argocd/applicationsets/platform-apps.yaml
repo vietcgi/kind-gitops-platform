@@ -20,7 +20,7 @@ spec:
         namespace: monitoring
         repoURL: https://prometheus-community.github.io/helm-charts
         chart: kube-prometheus-stack
-        version: "70.10.0"
+        version: "79.4.1"
         syncPolicy: aggressive
         group: observability
         syncWave: 1
@@ -29,7 +29,7 @@ spec:
         namespace: kube-system
         repoURL: https://kubernetes-sigs.github.io/metrics-server/
         chart: metrics-server
-        version: "3.12.1"  # Pinned version for stability
+        version: "3.12.2"
         syncPolicy: aggressive
         group: infrastructure
         syncWave: 0
@@ -38,7 +38,7 @@ spec:
         namespace: monitoring
         repoURL: https://grafana.github.io/helm-charts
         chart: loki-stack
-        version: "2.10.2"  # Pinned version for stability
+        version: "2.10.2"
         syncPolicy: aggressive
         group: observability
         syncWave: 1
@@ -47,7 +47,7 @@ spec:
         namespace: monitoring
         repoURL: https://grafana.github.io/helm-charts
         chart: tempo
-        version: "1.8.0"  # Pinned version for stability
+        version: "1.24.0"
         syncPolicy: aggressive
         group: observability
         syncWave: 1
@@ -57,7 +57,7 @@ spec:
         namespace: istio-system
         repoURL: https://istio-release.storage.googleapis.com/charts
         chart: istiod
-        version: "1.21.0"  # Pinned version for stability
+        version: "1.28.0"
         syncPolicy: conservative
         group: service_mesh
         syncWave: 2
@@ -67,7 +67,7 @@ spec:
         namespace: cert-manager
         repoURL: https://charts.jetstack.io
         chart: cert-manager
-        version: "v1.14.0"  # Pinned version for stability
+        version: "v1.19.1"
         syncPolicy: aggressive
         group: security
         syncWave: 0
@@ -76,7 +76,7 @@ spec:
         namespace: vault
         repoURL: https://helm.releases.hashicorp.com
         chart: vault
-        version: "0.28.0"  # Pinned version for stability
+        version: "0.31.0"
         syncPolicy: aggressive
         group: security
         syncWave: 3
@@ -85,7 +85,7 @@ spec:
         namespace: falco
         repoURL: https://falcosecurity.github.io/charts
         chart: falco
-        version: "4.2.1"  # Pinned version for stability
+        version: "4.21.0"
         syncPolicy: aggressive
         group: security
         syncWave: 3
@@ -94,7 +94,7 @@ spec:
         namespace: kyverno
         repoURL: https://kyverno.github.io/kyverno
         chart: kyverno
-        version: "3.2.1"  # Pinned version for stability
+        version: "3.6.0"
         syncPolicy: aggressive
         group: security
         syncWave: 3
@@ -103,7 +103,7 @@ spec:
         namespace: sealed-secrets
         repoURL: https://bitnami-labs.github.io/sealed-secrets
         chart: sealed-secrets
-        version: "2.13.2"  # Pinned version for stability
+        version: "2.17.0"
         syncPolicy: aggressive
         group: security
         syncWave: 3
@@ -113,7 +113,7 @@ spec:
         namespace: gatekeeper-system
         repoURL: https://open-policy-agent.github.io/gatekeeper/charts
         chart: gatekeeper
-        version: "3.17.0"  # Pinned version for stability
+        version: "3.18.2"
         syncPolicy: aggressive
         group: governance
         syncWave: 3
@@ -123,7 +123,7 @@ spec:
         namespace: external-dns
         repoURL: https://kubernetes-sigs.github.io/external-dns/
         chart: external-dns
-        version: "1.14.3"  # Pinned version for stability
+        version: "1.16.0"
         syncPolicy: aggressive
         group: infrastructure
         syncWave: 0
@@ -132,7 +132,7 @@ spec:
         namespace: api-gateway
         repoURL: https://charts.konghq.com
         chart: kong
-        version: "2.39.0"  # Pinned version for stability
+        version: "2.52.0"
         syncPolicy: aggressive
         group: infrastructure
         syncWave: 2
@@ -140,18 +140,18 @@ spec:
       # Enterprise Features - Storage & Backup
       - name: longhorn
         namespace: longhorn-system
-        repoURL: https://github.com/vietcgi/kubernetes-platform-stack
-        chart: ./helm/longhorn
-        targetRevision: main
+        repoURL: https://charts.longhorn.io
+        chart: longhorn
+        version: "1.10.0"
         syncPolicy: aggressive
         group: infrastructure
         syncWave: 4
 
       - name: velero
         namespace: velero
-        repoURL: https://github.com/vietcgi/kubernetes-platform-stack
-        chart: ./helm/velero
-        targetRevision: main
+        repoURL: https://vmware-tanzu.github.io/helm-charts
+        chart: velero
+        version: "11.1.1"
         syncPolicy: aggressive
         group: infrastructure
         syncWave: 4
@@ -161,7 +161,7 @@ spec:
         namespace: tracing
         repoURL: https://jaegertracing.github.io/helm-charts
         chart: jaeger
-        version: "3.3.0"  # Pinned version for stability
+        version: "3.4.1"
         syncPolicy: aggressive
         group: observability
         syncWave: 2
@@ -169,9 +169,9 @@ spec:
       # Synthetic Monitoring - Endpoint Availability
       - name: blackbox-exporter
         namespace: monitoring
-        repoURL: https://github.com/vietcgi/kubernetes-platform-stack
-        chart: ./helm/blackbox-exporter
-        targetRevision: main
+        repoURL: https://prometheus-community.github.io/helm-charts
+        chart: prometheus-blackbox-exporter
+        version: "9.2.0"
         syncPolicy: aggressive
         group: observability
         syncWave: 2
@@ -181,7 +181,7 @@ spec:
         namespace: harbor
         repoURL: https://helm.goharbor.io
         chart: harbor
-        version: "1.14.0"  # Pinned version for stability
+        version: "1.18.0"
         syncPolicy: aggressive
         group: infrastructure
         syncWave: 4
@@ -204,7 +204,7 @@ spec:
         helm:
           releaseName: '{{ .name }}'
           values: |
-            {{- if not (or (eq .name "cert-manager") (eq .name "falco") (eq .name "gatekeeper") (eq .name "sealed-secrets") (eq .name "istio") (eq .name "kyverno") (eq .name "tempo")) }}
+            {{- if not (or (eq .name "cert-manager") (eq .name "falco") (eq .name "gatekeeper") (eq .name "sealed-secrets") (eq .name "istio") (eq .name "kyverno") (eq .name "tempo") (eq .name "velero")) }}
             # Default minimal replicas for laptop deployment
             replicaCount: 1
             replicas: 1
@@ -220,8 +220,11 @@ spec:
             cainjector:
               replicaCount: 1
             {{ else if eq .name "falco" }}
-            # Falco runtime security
+            # Falco runtime security with modern eBPF driver for KIND/Docker Desktop
             replicaCount: 1
+            # Use modern eBPF driver (doesn't need kernel headers)
+            driver:
+              kind: modern_ebpf
             # Falco is a runtime security event listener, not an HTTP UI service
             # It exposes events via gRPC and event streams, not HTTP
             webui:
@@ -318,6 +321,18 @@ spec:
               replicas: 1
             reportsController:
               replicas: 1
+            # Fix kubectl image for cleanup jobs
+            cleanupJobs:
+              admissionReports:
+                image:
+                  registry: docker.io
+                  repository: bitnami/kubectl
+                  tag: "1.31"
+              clusterAdmissionReports:
+                image:
+                  registry: docker.io
+                  repository: bitnami/kubectl
+                  tag: "1.31"
             # Kyverno is a webhook-based policy validator, not an HTTP UI service
             reportsUI:
               enabled: false
@@ -392,6 +407,13 @@ spec:
                 hosts:
                   core: harbor.demo.local
                   notary: harbor-notary.demo.local
+            {{ else if eq .name "longhorn" }}
+            # Longhorn storage - disable hooks due to ServiceAccount dependency issue
+            # The pre-upgrade hook requires ServiceAccount that's created in Sync phase
+            preUpgradeChecker:
+              jobEnabled: false
+            postUpgradeChecker:
+              jobEnabled: false
             {{ else if eq .name "vault" }}
             # Vault with enabled ingress
             ui:
@@ -403,7 +425,33 @@ spec:
                 annotations:
                   konghq.com/strip-path: "true"
                 hosts:
-                  - vault.demo.local
+                  - host: vault.demo.local
+                    paths: [/]
+            {{ else if eq .name "velero" }}
+            # Velero backup solution - disable CRD upgrade for fresh install
+            upgradeCRDs: false
+            kubectl:
+              image:
+                repository: docker.io/bitnami/kubectl
+                tag: "1.31"
+            configuration:
+              backupStorageLocation:
+                - name: default
+                  provider: aws
+                  bucket: velero-backups
+                  config:
+                    region: us-east-1
+              volumeSnapshotLocation:
+                - name: default
+                  provider: aws
+                  config:
+                    region: us-east-1
+            initContainers:
+              - name: velero-plugin-for-aws
+                image: velero/velero-plugin-for-aws:v1.9.0
+                volumeMounts:
+                  - mountPath: /target
+                    name: plugins
             {{ end }}
       destination:
         server: https://kubernetes.default.svc
@@ -482,6 +530,29 @@ spec:
             - /spec
             - /metadata/annotations
             - /metadata/labels
+        # Harbor StatefulSets (ignore dynamic fields updated by controller)
+        - group: apps
+          kind: StatefulSet
+          namespace: harbor
+          jsonPointers:
+            - /spec/volumeClaimTemplates
+            - /spec/template/metadata/annotations
+            - /spec/replicas
+        # Istio Deployment and HPA (modified by istiod)
+        - group: apps
+          kind: Deployment
+          name: istiod
+          namespace: istio-system
+          jsonPointers:
+            - /spec/template/metadata/annotations
+            - /metadata/annotations
+        - group: autoscaling
+          kind: HorizontalPodAutoscaler
+          name: istiod
+          namespace: istio-system
+          jsonPointers:
+            - /spec
+            - /status
         # Kyverno webhook mutations (rules auto-generated by admission webhook)
         - group: kyverno.io
           kind: ClusterPolicy
