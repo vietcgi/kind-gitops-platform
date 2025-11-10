@@ -193,6 +193,18 @@ jobs:
           name: docker-image
           path: /tmp
 
+      - name: Verify artifacts and load image
+        run: |
+          echo "Checking kubeconfig..."
+          ls -la /tmp/kubeconfig* 2>/dev/null || echo "kubeconfig not found in /tmp"
+
+          echo "Checking image..."
+          ls -la /tmp/image.tar* 2>/dev/null || echo "image.tar not found in /tmp"
+
+          echo "Loading image into KIND..."
+        env:
+          KUBECONFIG: /tmp/kubeconfig
+
       - name: Load image into KIND
         env:
           KUBECONFIG: /tmp/kubeconfig
