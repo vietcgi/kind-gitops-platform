@@ -108,7 +108,7 @@ jobs:
           name: platform
           nodes:
           - role: control-plane
-            image: kindest/node:v1.28.0
+            image: kindest/node:v1.34.0
             extraPortMappings:
             - containerPort: 80
               hostPort: 80
@@ -120,9 +120,9 @@ jobs:
               hostPort: 8080
               protocol: TCP
           - role: worker
-            image: kindest/node:v1.28.0
+            image: kindest/node:v1.34.0
           - role: worker
-            image: kindest/node:v1.28.0
+            image: kindest/node:v1.34.0
           EOF
 
       - name: Create KIND cluster
