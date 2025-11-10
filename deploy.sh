@@ -315,17 +315,17 @@ else
     log_warn "Kong ingress Application not found: $SCRIPT_DIR/argocd/applications/kong-ingress.yaml"
 fi
 
-# Apply NetworkPolicy Applications (managed by ArgoCD)
-log_info "Applying NetworkPolicy Applications..."
-if [ -f "$SCRIPT_DIR/argocd/applications/harbor-network-policies.yaml" ]; then
-    kubectl apply -f "$SCRIPT_DIR/argocd/applications/harbor-network-policies.yaml" &
+# Apply NetworkPolicies as cluster infrastructure (not managed by ArgoCD)
+log_info "Applying NetworkPolicies for Harbor and Longhorn..."
+if [ -f "$SCRIPT_DIR/manifests/harbor/network-policy.yaml" ]; then
+    kubectl apply -f "$SCRIPT_DIR/manifests/harbor/network-policy.yaml" &
 else
-    log_warn "Harbor NetworkPolicy Application not found: $SCRIPT_DIR/argocd/applications/harbor-network-policies.yaml"
+    log_warn "Harbor NetworkPolicy not found: $SCRIPT_DIR/manifests/harbor/network-policy.yaml"
 fi
-if [ -f "$SCRIPT_DIR/argocd/applications/longhorn-network-policies.yaml" ]; then
-    kubectl apply -f "$SCRIPT_DIR/argocd/applications/longhorn-network-policies.yaml" &
+if [ -f "$SCRIPT_DIR/manifests/longhorn/network-policy.yaml" ]; then
+    kubectl apply -f "$SCRIPT_DIR/manifests/longhorn/network-policy.yaml" &
 else
-    log_warn "Longhorn NetworkPolicy Application not found: $SCRIPT_DIR/argocd/applications/longhorn-network-policies.yaml"
+    log_warn "Longhorn NetworkPolicy not found: $SCRIPT_DIR/manifests/longhorn/network-policy.yaml"
 fi
 
 wait  # Wait for all kubectl apply commands to complete
