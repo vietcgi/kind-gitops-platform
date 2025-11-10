@@ -128,7 +128,7 @@ jobs:
           cluster_name: platform
           node_image: kindest/node:v1.34.0
           config: /tmp/kind/kind-config.yaml
-          wait: 300
+          wait: 300s
 
       - name: Verify cluster
         run: |
