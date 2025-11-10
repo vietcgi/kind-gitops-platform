@@ -1,0 +1,35 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: cilium
+  namespace: argocd
+spec:
+  project: default
+
+  source:
+    repoURL: https://helm.cilium.io
+    targetRevision: 1.18.3
+    chart: cilium
+    helm:
+      releaseName: cilium
+      values: |
+        kubeProxyReplacement: true
+        k8sServiceHost: "kubernetes.default.svc.cluster.local"
+        k8sServicePort: 443
+        hubble:
+          enabled: true
+          relay:
+            enabled: true
+          ui:
+            enabled: true
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kube-system
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    retry:
+      limit: 5
