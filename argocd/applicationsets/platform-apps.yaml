@@ -283,10 +283,19 @@ spec:
               - --kubelet-insecure-tls
               - --kubelet-preferred-address-types=InternalIP,ExternalIP,Hostname
             {{ else if eq .name "loki" }}
-            # Loki ingress disabled - chart has template validation issues
+            # Loki ingress enabled for Kong
             loki:
               ingress:
-                enabled: false
+                enabled: true
+                ingressClassName: kong
+                annotations:
+                  konghq.com/strip-path: "true"
+                hosts:
+                  loki:
+                    host: loki.demo.local
+                    paths:
+                      - path: /
+                        pathType: Prefix
             # Disable Grafana (use the one from prometheus stack instead)
             grafana:
               enabled: false
