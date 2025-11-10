@@ -222,41 +222,22 @@ spec:
             {{ else if eq .name "falco" }}
             # Falco runtime security
             replicaCount: 1
-            # Falco ingress for Kong
+            # Falco is a runtime security event listener, not an HTTP UI service
+            # It exposes events via gRPC and event streams, not HTTP
             webui:
-              enabled: true
-              service:
-                type: ClusterIP
-              ingress:
-                enabled: true
-                ingressClassName: kong
-                annotations:
-                  konghq.com/strip-path: "true"
-                host: falco.demo.local
+              enabled: false
             {{ else if eq .name "gatekeeper" }}
-            # Gatekeeper policy enforcement
+            # Gatekeeper policy enforcement (OPA-based policy engine)
             replicas: 1
             audit:
               replicas: 1
             # Disable CRD upgrades (let operator manage them)
             disableMutation: false
             disableValidatingWebhook: false
-            # Gatekeeper audit viewer ingress for Kong
             enableExternalData: true
-            audit:
-              replicas: 1
-              auditChunkSize: 5000
+            # Gatekeeper is a webhook-based policy engine, not an HTTP UI service
             auditViewer:
-              enabled: true
-              service:
-                type: ClusterIP
-              ingress:
-                enabled: true
-                ingressClassName: kong
-                annotations:
-                  konghq.com/strip-path: "true"
-                host: gatekeeper.demo.local
-                path: /
+              enabled: false
             {{ else if eq .name "sealed-secrets" }}
             # Sealed Secrets
             replicaCount: 1
@@ -336,7 +317,7 @@ spec:
             pilot:
               replicaCount: 1
             {{ else if eq .name "kyverno" }}
-            # Kyverno policy engine
+            # Kyverno policy engine (webhook-based policy validation)
             replicaCount: 1
             admissionController:
               replicas: 1
@@ -346,17 +327,9 @@ spec:
               replicas: 1
             reportsController:
               replicas: 1
-            # Kyverno CLI reports ingress for Kong
+            # Kyverno is a webhook-based policy validator, not an HTTP UI service
             reportsUI:
-              enabled: true
-              service:
-                type: ClusterIP
-              ingress:
-                enabled: true
-                ingressClassName: kong
-                annotations:
-                  konghq.com/strip-path: "true"
-                host: kyverno.demo.local
+              enabled: false
             {{ else if eq .name "tempo" }}
             # Tempo distributed tracing
             replicas: 1

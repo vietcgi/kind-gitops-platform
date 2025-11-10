@@ -89,15 +89,7 @@ nodeSelector: {}
 # Tolerations
 tolerations: []
 
-# Ingress configuration for Kong
+# Ingress configuration disabled
+# Kyverno is a webhook-based policy validator, not an HTTP UI service
 ingress:
-  enabled: true
-  ingressClassName: kong
-  annotations:
-    konghq.com/strip-path: "true"
-  hosts:
-    - host: kyverno.demo.local
-      paths:
-        - path: /
-          pathType: Prefix
-  tls: []
+  enabled: false

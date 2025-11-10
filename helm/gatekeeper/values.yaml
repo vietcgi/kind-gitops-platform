@@ -77,18 +77,10 @@ gatekeeper:
   # Affinity
   affinity: {}
 
-  # Ingress configuration for Kong
+  # Ingress configuration disabled
+  # Gatekeeper is a webhook-based policy engine, not an HTTP UI service
   ingress:
-    enabled: true
-    ingressClassName: kong
-    annotations:
-      konghq.com/strip-path: "true"
-    hosts:
-      - host: gatekeeper.demo.local
-        paths:
-          - path: /
-            pathType: Prefix
-    tls: []
+    enabled: false
 
 # Pod disruption budget
 podDisruptionBudget:

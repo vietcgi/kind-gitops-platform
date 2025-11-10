@@ -81,15 +81,8 @@ falcoSidekick:
 rbac:
   create: true
 
-# Ingress configuration for Kong (for Falco UI/API)
+# Ingress configuration disabled
+# Falco is a runtime security event listener, not an HTTP UI service
+# It exposes events via gRPC and event streams, not HTTP
 ingress:
-  enabled: true
-  ingressClassName: kong
-  annotations:
-    konghq.com/strip-path: "true"
-  hosts:
-    - host: falco.demo.local
-      paths:
-        - path: /
-          pathType: Prefix
-  tls: []
+  enabled: false
