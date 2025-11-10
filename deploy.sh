@@ -6,6 +6,31 @@ CLUSTER_NAME="${CLUSTER_NAME:-platform}"
 echo "Creating KIND cluster..."
 kind create cluster --config kind-config.yaml --name "$CLUSTER_NAME"
 
+echo "Patching CoreDNS (KIND cluster DNS)..."
+kubectl patch deployment coredns -n kube-system -p '{
+  "spec": {
+    "template": {
+      "spec": {
+        "containers": [
+          {
+            "name": "coredns",
+            "resources": {
+              "limits": {
+                "cpu": "100m",
+                "memory": "64Mi"
+              },
+              "requests": {
+                "cpu": "50m",
+                "memory": "32Mi"
+              }
+            }
+          }
+        ]
+      }
+    }
+  }
+}'
+
 echo "Installing ArgoCD..."
 kubectl create namespace argocd
 kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
