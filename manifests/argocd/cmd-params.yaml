@@ -1,0 +1,16 @@
+---
+# ArgoCD Server Configuration
+# Configures ArgoCD server to run in insecure (HTTP-only) mode
+# This is appropriate for development environments behind an ingress controller
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cmd-params-cm
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: argocd-cmd-params-cm
+    app.kubernetes.io/part-of: argocd
+data:
+  # Disable TLS on ArgoCD server
+  # Set to "true" to run in HTTP-only mode (recommended for testing with ingress)
+  server.insecure: "true"
