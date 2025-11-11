@@ -55,9 +55,13 @@ spec:
     ports:
     - port: 6379
       protocol: TCP
-  # Allow outbound HTTP/HTTPS for git operations and helm repos
+  # Allow outbound HTTP/HTTPS for git operations and helm repos (external + internal)
   - to:
     - namespaceSelector: {}
+    - ipBlock:
+        cidr: 0.0.0.0/0
+        except:
+        - 169.254.169.254/32  # AWS metadata service
     ports:
     - port: 80
       protocol: TCP
