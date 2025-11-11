@@ -156,15 +156,23 @@ kubectl wait --for=condition=ready pod -l k8s-app=cilium -n kube-system --timeou
 
 echo ""
 echo "=============================================="
-echo "PHASE 2: Install ArgoCD"
+echo "PHASE 2: Install ArgoCD with Helm"
 echo "=============================================="
 echo ""
 
 log_info "Creating argocd namespace..."
 kubectl create namespace argocd 2>/dev/null || true
 
-log_info "Installing ArgoCD..."
-kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+log_info "Adding ArgoCD Helm repository..."
+helm repo add argoproj https://argoproj.github.io/argo-helm
+helm repo update argoproj
+
+log_info "Installing ArgoCD using Helm with custom values..."
+helm upgrade --install argocd argoproj/argo-cd \
+  --namespace argocd \
+  --values "$SCRIPT_DIR/helm/argocd/values.yaml" \
+  --version 7.2.0 \
+  --wait
 
 log_info "Waiting for ArgoCD server..."
 kubectl wait deployment argocd-server -n argocd --for=condition=Available --timeout=$STARTUP_TIMEOUT
