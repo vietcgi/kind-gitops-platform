@@ -1,0 +1,12 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: kube-system
+
+# Apply CoreDNS deployment patch to manage the KIND-created CoreDNS
+resources:
+  - coredns-deployment.yaml
+
+# Add labels for proper ownership tracking
+commonLabels:
+  app.kubernetes.io/managed-by: ArgoCD
