@@ -1,30 +1,25 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: root-app
+  name: coredns-config
   namespace: argocd
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
   project: default
-
   source:
     repoURL: https://github.com/vietcgi/kubernetes-platform-stack
     targetRevision: main
-    path: argocd/bootstrap
-
+    path: manifests/coredns
   destination:
     server: https://kubernetes.default.svc
-    namespace: argocd
-
+    namespace: kube-system
   syncPolicy:
     automated:
       prune: true
       selfHeal: true
     syncOptions:
-      - CreateNamespace=true
-      - PrunePropagationPolicy=foreground
-      - PruneLast=true
+      - RespectIgnoreDifferences=true
     retry:
       limit: 5
       backoff:

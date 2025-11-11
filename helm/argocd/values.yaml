@@ -1,24 +1,15 @@
-# ArgoCD Helm Chart Values
-# Latest v3.2.0 with enhanced GitOps capabilities
+# Minimal ArgoCD Helm Values
+# Installs only core ArgoCD components
+# All configuration (network policies, RBAC, ingress) managed by ArgoCD itself via argocd-config Application
 
 argo-cd:
   global:
-    domain: argocd.demo.local
     imagePullPolicy: IfNotPresent
 
   # ArgoCD server (API and UI)
   server:
     enabled: true
     replicaCount: 1
-    service:
-      type: LoadBalancer
-      port: 80
-      targetPort: 8080
-    extraArgs:
-      - --insecure  # Use insecure mode for testing (set to false in prod)
-    # Disable TLS completely for HTTP-only operation behind Kong ingress
-    tls:
-      enabled: false
     resources:
       requests:
         cpu: 100m
@@ -31,11 +22,6 @@ argo-cd:
   repoServer:
     enabled: true
     replicaCount: 1
-    autoscaling:
-      enabled: true
-      minReplicas: 1
-      maxReplicas: 3
-      targetCPUUtilizationPercentage: 80
     resources:
       requests:
         cpu: 100m
@@ -90,50 +76,7 @@ argo-cd:
         cpu: 100m
         memory: 256Mi
 
-  # ArgoCD configs
-  configs:
-    # Command parameters for ArgoCD server
-    params:
-      server.insecure: "true"  # Enable HTTP-only mode for Kong ingress
-    # Initial admin password (use Sealed Secrets for production)
-    # To set the admin password securely, use one of these approaches:
-    # 1. Create a Sealed Secret: https://github.com/bitnami-labs/sealed-secrets
-    #    kubectl create secret generic argocd-initial-admin --from-literal=password='<new-password>' -n argocd --dry-run=client -o yaml | kubeseal -f - > sealed-argocd-secret.yaml
-    # 2. Use External Secrets Operator to fetch from Vault
-    # 3. Use ArgoCD OIDC/Dex authentication for OAuth-based login
-    secret:
-      createSecret: false  # Set to false when using external secret management
-
-    # Repository credentials
-    repositories: {}
-      # Example:
-      # - name: kubernetes-platform-stack
-      #   url: https://github.com/vietcgi/kubernetes-platform-stack
-      #   username: username
-      #   password: token
-
-    # SSH known hosts for Git (these are public keys and will be auto-populated by ArgoCD)
-    knownHosts:
-      data: {}
-
-    # RBAC configuration
-    rbac:
-      create: true
-      rules:
-        - groups:
-            - admin
-          resources:
-            - "*"
-          verbs:
-            - "*"
-        - groups:
-            - default
-          resources:
-            - logs
-          verbs:
-            - get
-
-  # Application controller settings
+  # ApplicationSet
   applicationSet:
     enabled: true
     replicaCount: 1
@@ -145,93 +88,11 @@ argo-cd:
         cpu: 200m
         memory: 512Mi
 
-  # Image updater for automatic image updates
-  imageUpdater:
-    enabled: true
-    replicaCount: 1
-    resources:
-      requests:
-        cpu: 50m
-        memory: 128Mi
-      limits:
-        cpu: 200m
-        memory: 256Mi
-
-  # Metrics and monitoring
-  metrics:
-    enabled: true
-    serviceMonitor:
-      enabled: true
-      namespace: monitoring
-
-  # Pod Disruption Budget for high availability
-  podDisruptionBudget:
-    enabled: false  # Disable for single-replica deployments
-
-  # Ingress configuration for Kong
-  ingress:
-    enabled: true
-    ingressClassName: kong
-    annotations:
-      konghq.com/strip-path: "true"
-      konghq.com/protocols: "http"
-    hosts:
-      - host: argocd.demo.local
-        paths:
-          - path: /
-            pathType: Prefix
-    tls: []
-
-# Git repository for app manifests (required for GitOps)
-gitRepository:
-  enabled: true
-  # URL to your Git repository
-  url: "https://github.com/vietcgi/kubernetes-platform-stack"
-  # Branch to track
-  branch: main
-  # Path to application manifests in the repo
-  path: argocd/
-  # How often to sync (in seconds)
-  syncInterval: 30s
-
-# Application of Applications (ArgoCD meta-orchestrator)
-appOfApps:
-  enabled: true
-  namespace: argocd
-  # Apps to deploy
-  apps:
-    - name: cilium
-      namespace: kube-system
-      path: helm/cilium
-      repoUrl: "https://github.com/vietcgi/kubernetes-platform-stack"
-      syncPolicy:
-        automated:
-          prune: true
-          selfHeal: true
-
-    - name: istio
-      namespace: istio-system
-      path: helm/istio
-      repoUrl: "https://github.com/vietcgi/kubernetes-platform-stack"
-      syncPolicy:
-        automated:
-          prune: true
-          selfHeal: true
-
-    - name: prometheus
-      namespace: monitoring
-      path: helm/prometheus
-      repoUrl: "https://github.com/vietcgi/kubernetes-platform-stack"
-      syncPolicy:
-        automated:
-          prune: true
-          selfHeal: true
-
-    - name: my-app
-      namespace: app
-      path: helm/my-app
-      repoUrl: "https://github.com/vietcgi/kubernetes-platform-stack"
-      syncPolicy:
-        automated:
-          prune: false  # Don't delete app on sync failure
-          selfHeal: true
+  # Disable all configuration here - managed by argocd-config Application
+  configs:
+    params: {}
+    secret:
+      createSecret: false
+    repositories: {}
+    knownHosts:
+      data: {}

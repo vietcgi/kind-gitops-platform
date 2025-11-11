@@ -123,36 +123,7 @@ kubectl patch deployment coredns -n kube-system -p '{
 log_info "Waiting for CoreDNS pods..."
 kubectl wait --for=condition=ready pod -l k8s-app=kube-dns -n kube-system --timeout=$STARTUP_TIMEOUT
 
-# Install Cilium CNI (critical - must be before ArgoCD)
-CILIUM_VERSION="1.18.3"
-log_info "Preloading Cilium image to speed up installation..."
-CILIUM_IMAGE="quay.io/cilium/cilium:${CILIUM_VERSION}"
-docker pull "${CILIUM_IMAGE}" 2>&1 | grep -E "Pulling|Downloaded|Already" | tail -3 || true
-kind load docker-image "${CILIUM_IMAGE}" --name "$CLUSTER_NAME" 2>&1 | tail -2 || true
-
-log_info "Adding Cilium Helm repository..."
-helm repo add cilium https://helm.cilium.io --force-update
-
-log_info "Installing Cilium CNI..."
-CONTROL_PLANE_IP=$(kubectl get nodes -o jsonpath='{.items[0].status.addresses[?(@.type=="InternalIP")].address}')
-if ! helm upgrade --install cilium cilium/cilium \
-  --version "${CILIUM_VERSION}" \
-  --namespace kube-system \
-  --set image.pullPolicy=IfNotPresent \
-  --set ipam.mode=kubernetes \
-  --set kubeProxyReplacement=true \
-  --set k8sServiceHost="$CONTROL_PLANE_IP" \
-  --set k8sServicePort=6443 \
-  --set ebpf.enabled=true \
-  --set hubble.enabled=true \
-  --set hubble.relay.enabled=true \
-  --set hubble.ui.enabled=true; then
-    log_error "Failed to install Cilium"
-    exit 1
-fi
-
-log_info "Waiting for Cilium pods..."
-kubectl wait --for=condition=ready pod -l k8s-app=cilium -n kube-system --timeout=300s
+log_info "Phase 1 complete - Cilium CNI will be installed by ArgoCD via root-app"
 
 echo ""
 echo "=============================================="
