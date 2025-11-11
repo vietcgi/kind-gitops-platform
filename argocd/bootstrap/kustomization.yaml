@@ -5,8 +5,6 @@ namespace: argocd
 
 resources:
   - _coredns.yaml
-  - _network-policies.yaml
-  - _argocd-config.yaml
   - _infra-apps.yaml
 
 sortOptions:
