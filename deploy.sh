@@ -123,6 +123,29 @@ kubectl patch deployment coredns -n kube-system -p '{
 log_info "Waiting for CoreDNS pods..."
 kubectl wait --for=condition=ready pod -l k8s-app=kube-dns -n kube-system --timeout=$STARTUP_TIMEOUT
 
+# Install Cilium CNI (critical - must be before ArgoCD)
+log_info "Adding Cilium Helm repository..."
+helm repo add cilium https://helm.cilium.io --force-update
+
+log_info "Installing Cilium CNI..."
+CONTROL_PLANE_IP=$(kubectl get nodes -o jsonpath='{.items[0].status.addresses[?(@.type=="InternalIP")].address}')
+if ! helm upgrade --install cilium cilium/cilium \
+  --version 1.18.3 \
+  --namespace kube-system \
+  --set kubeProxyReplacement=true \
+  --set k8sServiceHost="$CONTROL_PLANE_IP" \
+  --set k8sServicePort=6443 \
+  --set ebpf.enabled=true \
+  --set hubble.enabled=true \
+  --set hubble.relay.enabled=true \
+  --set hubble.ui.enabled=true; then
+    log_error "Failed to install Cilium"
+    exit 1
+fi
+
+log_info "Waiting for Cilium pods..."
+kubectl wait --for=condition=ready pod -l k8s-app=cilium -n kube-system --timeout=300
+
 echo ""
 echo "=============================================="
 echo "PHASE 2: Install ArgoCD"
