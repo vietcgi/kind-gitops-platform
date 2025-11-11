@@ -5,6 +5,8 @@ namespace: argocd
 
 resources:
   - _namespace.yaml
+  - _coredns.yaml
+  - _cilium.yaml
   - _argocd-config.yaml
   - _infra-apps.yaml
   - _platform-apps.yaml

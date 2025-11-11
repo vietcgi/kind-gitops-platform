@@ -3,6 +3,8 @@ kind: Application
 metadata:
   name: cilium
   namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
 spec:
   project: default
 
@@ -13,15 +15,35 @@ spec:
     helm:
       releaseName: cilium
       values: |
-        kubeProxyReplacement: true
+        # Core networking
+        kubeProxyReplacement: strict
         k8sServiceHost: "kubernetes.default.svc.cluster.local"
         k8sServicePort: 443
+
+        # eBPF dataplane
+        ebpf:
+          enabled: true
+
+        # Network policies
+        networkPolicy:
+          enabled: true
+
+        # Observability
         hubble:
           enabled: true
           relay:
             enabled: true
           ui:
             enabled: true
+
+        # Resource limits for KIND
+        resources:
+          limits:
+            cpu: 500m
+            memory: 512Mi
+          requests:
+            cpu: 100m
+            memory: 128Mi
 
   destination:
     server: https://kubernetes.default.svc
@@ -31,5 +53,12 @@ spec:
     automated:
       prune: true
       selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - RespectIgnoreDifferences=true
     retry:
       limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
