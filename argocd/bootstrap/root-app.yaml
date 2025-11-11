@@ -10,7 +10,7 @@ spec:
 
   source:
     repoURL: https://github.com/vietcgi/kubernetes-platform-stack
-    targetRevision: 20d680e
+    targetRevision: ad69e23
     path: argocd/bootstrap
 
   destination:
