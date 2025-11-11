@@ -23,9 +23,21 @@ spec:
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
+      - RespectIgnoreDifferences=true
     retry:
       limit: 5
       backoff:
         duration: 5s
         factor: 2
         maxDuration: 3m
+
+  # Ignore the actual Deployment spec to avoid conflicts with KIND-created resource
+  ignoreDifferences:
+  - group: apps
+    kind: Deployment
+    name: coredns
+    namespace: kube-system
+    jsonPointers:
+    - /spec/replicas
+    - /metadata/generation
+    - /status

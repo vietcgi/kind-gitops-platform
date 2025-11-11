@@ -3,10 +3,7 @@ kind: Kustomization
 
 namespace: kube-system
 
-# Apply CoreDNS deployment patch to manage the KIND-created CoreDNS
+# Configure CoreDNS resource limits and image version
+# The Deployment itself is created by KIND; we only manage the configuration patch
 resources:
-  - coredns-deployment.yaml
-
-# Add labels for proper ownership tracking
-commonLabels:
-  app.kubernetes.io/managed-by: ArgoCD
+  - coredns-configpatch.yaml
