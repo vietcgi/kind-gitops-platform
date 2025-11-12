@@ -238,8 +238,12 @@ spec:
         io.kubernetes.pod.namespace: argocd
     toPorts:
     - ports:
+      - port: "6379"
+        protocol: TCP  # Redis cache
       - port: "8080"
         protocol: TCP  # ArgoCD server
+      - port: "8081"
+        protocol: TCP  # ArgoCD repo-server
       - port: "8083"
         protocol: TCP  # ArgoCD gRPC
   egress:
