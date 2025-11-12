@@ -156,6 +156,9 @@ spec:
         protocol: UDP
       - port: "53"
         protocol: TCP
+  # Allow Kubernetes API server access (required for admission webhooks)
+  - toEntities:
+    - "kube-apiserver"
   # Allow Prometheus to scrape metrics from any namespace
   - toEndpoints:
     - matchLabels: {}
