@@ -15,7 +15,7 @@ metadata:
 spec:
   endpointSelector:
     matchLabels:
-      app: longhorn
+      app.kubernetes.io/name: longhorn
   description: "Allow Longhorn manager and engine communication for volume replication"
   ingress:
   # Longhorn engine to engine communication
@@ -52,7 +52,7 @@ spec:
   # Longhorn to Longhorn (same namespace)
   - toEndpoints:
     - matchLabels:
-        app: longhorn
+        app.kubernetes.io/name: longhorn
     toPorts:
     - ports:
       - port: "9500"
