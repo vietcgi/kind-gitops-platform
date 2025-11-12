@@ -17,9 +17,6 @@ spec:
     matchLabels:
       app: longhorn
   description: "Allow Longhorn manager and engine communication for volume replication"
-  policyTypes:
-  - Ingress
-  - Egress
   ingress:
   # Longhorn engine to engine communication
   - fromEndpoints:
@@ -39,6 +36,8 @@ spec:
     - ports:
       - port: "9500"
         protocol: TCP
+      - port: "9502"
+        protocol: TCP  # Webhook service
       - port: "8500"
         protocol: TCP
   # Local kubelet for volume attachment
@@ -60,16 +59,69 @@ spec:
         protocol: TCP
       - port: "9501"
         protocol: TCP
+      - port: "9502"
+        protocol: TCP  # Webhook service
       - port: "8500"
         protocol: TCP
   # DNS resolution
   - toEndpoints:
     - matchLabels:
-        k8s-app: coredns
+        k8s-app: kube-dns
+        io.kubernetes.pod.namespace: kube-system
     toPorts:
     - ports:
       - port: "53"
         protocol: UDP
+      - port: "53"
+        protocol: TCP
+  # Kubernetes API server access
+  - toEntities:
+    - "kube-apiserver"
+
+---
+# Longhorn Webhook Access
+# Allow API server to call Longhorn webhooks
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: longhorn-allow-webhook-access
+  namespace: longhorn-system
+  labels:
+    app.kubernetes.io/name: network-policies
+    app.kubernetes.io/component: storage
+spec:
+  endpointSelector:
+    matchLabels:
+      longhorn.io/admission-webhook: longhorn-admission-webhook
+  description: "Allow Kubernetes API server to call Longhorn admission webhooks"
+  ingress:
+  # From Kubernetes API server
+  - fromEntities:
+    - "kube-apiserver"
+    toPorts:
+    - ports:
+      - port: "9502"
+        protocol: TCP  # Webhook service
+  # From kube-system namespace (API server pods)
+  - fromEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: kube-system
+    toPorts:
+    - ports:
+      - port: "9502"
+        protocol: TCP
+  egress:
+  # DNS resolution
+  - toEndpoints:
+    - matchLabels:
+        k8s-app: kube-dns
+        io.kubernetes.pod.namespace: kube-system
+    toPorts:
+    - ports:
+      - port: "53"
+        protocol: UDP
+      - port: "53"
+        protocol: TCP
 
 ---
 # Longhorn UI and API Access
@@ -120,9 +172,6 @@ spec:
     matchLabels:
       app: harbor
   description: "Allow Harbor internal service communication"
-  policyTypes:
-  - Ingress
-  - Egress
   ingress:
   # Harbor to Harbor (internal communication)
   - fromEndpoints:
@@ -136,6 +185,8 @@ spec:
         protocol: TCP  # Harbor Core/UI
       - port: "8443"
         protocol: TCP  # Harbor Core HTTPS
+      - port: "6379"
+        protocol: TCP  # Redis
   # Kubelet image pulls
   - fromEndpoints:
     - matchLabels:
@@ -166,14 +217,19 @@ spec:
         protocol: TCP
       - port: "8443"
         protocol: TCP
+      - port: "6379"
+        protocol: TCP  # Redis
   # DNS resolution
   - toEndpoints:
     - matchLabels:
-        k8s-app: coredns
+        k8s-app: kube-dns
+        io.kubernetes.pod.namespace: kube-system
     toPorts:
     - ports:
       - port: "53"
         protocol: UDP
+      - port: "53"
+        protocol: TCP
 
 ---
 # Harbor External Registry Access
@@ -192,12 +248,20 @@ spec:
       app: harbor-core
   description: "Allow Harbor to pull images from external registries"
   egress:
+  # DNS resolution (required for all external access)
+  - toEndpoints:
+    - matchLabels:
+        k8s-app: kube-dns
+        io.kubernetes.pod.namespace: kube-system
+    toPorts:
+    - ports:
+      - port: "53"
+        protocol: UDP
+      - port: "53"
+        protocol: TCP
   # Docker Hub
   - toFQDNs:
-    - matchName: "docker.io"
-    - matchName: "registry-1.docker.io"
-    - matchName: "auth.docker.io"
-    - matchName: "*.docker.io"
+    - matchPattern: "*.docker.io"
     toPorts:
     - ports:
       - port: "443"
@@ -205,7 +269,7 @@ spec:
   # GitHub Container Registry
   - toFQDNs:
     - matchName: "ghcr.io"
-    - matchName: "*.githubusercontent.com"
+    - matchPattern: "*.githubusercontent.com"
     toPorts:
     - ports:
       - port: "443"
@@ -213,20 +277,29 @@ spec:
   # Quay.io
   - toFQDNs:
     - matchName: "quay.io"
+    - matchPattern: "*.quay.io"
     toPorts:
     - ports:
       - port: "443"
         protocol: TCP
-  # AWS ECR
+  # AWS ECR (use broader pattern)
   - toFQDNs:
-    - matchName: "*.dkr.ecr.*.amazonaws.com"
+    - matchPattern: "*.amazonaws.com"
     toPorts:
     - ports:
       - port: "443"
         protocol: TCP
   # Azure ACR
   - toFQDNs:
-    - matchName: "*.azurecr.io"
+    - matchPattern: "*.azurecr.io"
+    toPorts:
+    - ports:
+      - port: "443"
+        protocol: TCP
+  # Google Container Registry
+  - toFQDNs:
+    - matchName: "gcr.io"
+    - matchPattern: "*.gcr.io"
     toPorts:
     - ports:
       - port: "443"
@@ -291,33 +364,27 @@ spec:
     matchLabels:
       app: velero
   description: "Allow Velero to access storage for backups"
-  policyTypes:
-  - Ingress
-  - Egress
   egress:
-  # To all namespaces (reading resources for backup)
-  - toEndpoints:
-    - matchLabels: {}
-    toPorts:
-    - ports:
-      - port: "443"
-        protocol: TCP
-      - port: "6443"
-        protocol: TCP  # Kubernetes API
+  # Kubernetes API server access
+  - toEntities:
+    - "kube-apiserver"
   # DNS resolution
   - toEndpoints:
     - matchLabels:
-        k8s-app: coredns
+        k8s-app: kube-dns
+        io.kubernetes.pod.namespace: kube-system
     toPorts:
     - ports:
       - port: "53"
         protocol: UDP
+      - port: "53"
+        protocol: TCP
   # External storage (S3, GCS, Azure, etc.)
   - toFQDNs:
     - matchName: "s3.amazonaws.com"
-    - matchName: "*.s3.amazonaws.com"
+    - matchPattern: "*.s3.amazonaws.com"
     - matchName: "storage.googleapis.com"
-    - matchName: "*.blob.core.windows.net"
+    - matchPattern: "*.blob.core.windows.net"
     toPorts:
     - ports:
       - port: "443"

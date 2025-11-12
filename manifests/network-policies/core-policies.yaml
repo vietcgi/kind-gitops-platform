@@ -16,7 +16,7 @@ metadata:
 spec:
   endpointSelector:
     matchLabels:
-      k8s-app: coredns
+      k8s-app: kube-dns
   description: "Allow DNS resolution from all pods to CoreDNS"
   ingress:
   - fromEndpoints:
@@ -42,9 +42,6 @@ metadata:
 spec:
   endpointSelector: {}
   description: "Allow pod-to-pod communication within default namespace"
-  policyTypes:
-  - Ingress
-  - Egress
   ingress:
   - fromEndpoints:
     - matchLabels:
@@ -58,16 +55,21 @@ spec:
       - port: "9090"
         protocol: TCP
   egress:
+  # Allow communication within namespace
   - toEndpoints:
     - matchLabels:
         io.kubernetes.pod.namespace: default
+  # Allow DNS resolution
   - toEndpoints:
     - matchLabels:
-        k8s-app: coredns
+        k8s-app: kube-dns
+        io.kubernetes.pod.namespace: kube-system
     toPorts:
     - ports:
       - port: "53"
         protocol: UDP
+      - port: "53"
+        protocol: TCP
 
 ---
 # App Namespace Core Communication
@@ -82,9 +84,6 @@ metadata:
 spec:
   endpointSelector: {}
   description: "Allow pod-to-pod communication within app namespace"
-  policyTypes:
-  - Ingress
-  - Egress
   ingress:
   - fromEndpoints:
     - matchLabels:
@@ -98,16 +97,21 @@ spec:
       - port: "9090"
         protocol: TCP
   egress:
+  # Allow communication within namespace
   - toEndpoints:
     - matchLabels:
         io.kubernetes.pod.namespace: app
+  # Allow DNS resolution
   - toEndpoints:
     - matchLabels:
-        k8s-app: coredns
+        k8s-app: kube-dns
+        io.kubernetes.pod.namespace: kube-system
     toPorts:
     - ports:
       - port: "53"
         protocol: UDP
+      - port: "53"
+        protocol: TCP
 
 ---
 # Monitoring Namespace Core Communication
@@ -121,10 +125,7 @@ metadata:
     app.kubernetes.io/component: core
 spec:
   endpointSelector: {}
-  description: "Allow pod-to-pod communication within monitoring namespace"
-  policyTypes:
-  - Ingress
-  - Egress
+  description: "Allow pod-to-pod communication within monitoring namespace and metrics scraping"
   ingress:
   - fromEndpoints:
     - matchLabels:
@@ -142,16 +143,38 @@ spec:
       - port: "8080"
         protocol: TCP  # Application metrics
   egress:
+  # Allow communication within namespace
   - toEndpoints:
     - matchLabels:
         io.kubernetes.pod.namespace: monitoring
+  # Allow DNS resolution
   - toEndpoints:
     - matchLabels:
-        k8s-app: coredns
+        k8s-app: kube-dns
+        io.kubernetes.pod.namespace: kube-system
     toPorts:
     - ports:
       - port: "53"
         protocol: UDP
+      - port: "53"
+        protocol: TCP
+  # Allow Prometheus to scrape metrics from any namespace
+  - toEndpoints:
+    - matchLabels: {}
+    toPorts:
+    - ports:
+      - port: "8080"
+        protocol: TCP
+      - port: "9090"
+        protocol: TCP
+      - port: "9091"
+        protocol: TCP
+      - port: "9100"
+        protocol: TCP  # Node exporter
+      - port: "9153"
+        protocol: TCP  # CoreDNS metrics
+      - port: "10254"
+        protocol: TCP  # Nginx ingress metrics
 
 ---
 # Istio System Namespace Core Communication
@@ -166,9 +189,6 @@ metadata:
 spec:
   endpointSelector: {}
   description: "Allow pod-to-pod communication within istio-system namespace"
-  policyTypes:
-  - Ingress
-  - Egress
   ingress:
   - fromEndpoints:
     - matchLabels:
@@ -182,16 +202,24 @@ spec:
       - port: "15014"
         protocol: TCP  # istiod metrics
   egress:
+  # Allow communication within namespace
   - toEndpoints:
     - matchLabels:
         io.kubernetes.pod.namespace: istio-system
+  # Allow DNS resolution
   - toEndpoints:
     - matchLabels:
-        k8s-app: coredns
+        k8s-app: kube-dns
+        io.kubernetes.pod.namespace: kube-system
     toPorts:
     - ports:
       - port: "53"
         protocol: UDP
+      - port: "53"
+        protocol: TCP
+  # Istiod needs to reach API server
+  - toEntities:
+    - "kube-apiserver"
 
 ---
 # ArgoCD Namespace Core Communication
@@ -206,9 +234,6 @@ metadata:
 spec:
   endpointSelector: {}
   description: "Allow pod-to-pod communication within argocd namespace"
-  policyTypes:
-  - Ingress
-  - Egress
   ingress:
   - fromEndpoints:
     - matchLabels:
@@ -220,24 +245,34 @@ spec:
       - port: "8083"
         protocol: TCP  # ArgoCD gRPC
   egress:
+  # Allow communication within namespace
   - toEndpoints:
     - matchLabels:
         io.kubernetes.pod.namespace: argocd
+  # Allow DNS resolution
   - toEndpoints:
     - matchLabels:
-        k8s-app: coredns
+        k8s-app: kube-dns
+        io.kubernetes.pod.namespace: kube-system
     toPorts:
     - ports:
       - port: "53"
         protocol: UDP
-  # ArgoCD needs to reach GitHub
+      - port: "53"
+        protocol: TCP
+  # ArgoCD needs to reach Kubernetes API server
+  - toEntities:
+    - "kube-apiserver"
+  # ArgoCD needs to reach GitHub and external Git repos
   - toFQDNs:
     - matchName: "github.com"
-    - matchName: "*.githubusercontent.com"
+    - matchPattern: "*.githubusercontent.com"
     toPorts:
     - ports:
       - port: "443"
         protocol: TCP
+      - port: "22"
+        protocol: TCP  # Git SSH
 
 ---
 # Cert-Manager Namespace Core Communication
@@ -252,9 +287,6 @@ metadata:
 spec:
   endpointSelector: {}
   description: "Allow pod-to-pod communication within cert-manager namespace"
-  policyTypes:
-  - Ingress
-  - Egress
   ingress:
   - fromEndpoints:
     - matchLabels:
@@ -265,17 +297,27 @@ spec:
         protocol: TCP
       - port: "8080"
         protocol: TCP
+      - port: "9402"
+        protocol: TCP  # Webhook
   egress:
+  # Allow communication within namespace
   - toEndpoints:
     - matchLabels:
         io.kubernetes.pod.namespace: cert-manager
+  # Allow DNS resolution
   - toEndpoints:
     - matchLabels:
-        k8s-app: coredns
+        k8s-app: kube-dns
+        io.kubernetes.pod.namespace: kube-system
     toPorts:
     - ports:
       - port: "53"
         protocol: UDP
+      - port: "53"
+        protocol: TCP
+  # Allow Kubernetes API server access (required for cert-manager-cainjector)
+  - toEntities:
+    - "kube-apiserver"
   # cert-manager needs to reach Let's Encrypt
   - toFQDNs:
     - matchName: "acme-v02.api.letsencrypt.org"
