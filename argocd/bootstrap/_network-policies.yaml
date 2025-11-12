@@ -1,14 +1,14 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: platform-network-policies
+  name: platform-network-policies-bootstrap
   namespace: argocd
   labels:
     app.kubernetes.io/name: network-policies
     app.kubernetes.io/group: infrastructure
-    app.kubernetes.io/managed-by: applications
+    app.kubernetes.io/managed-by: bootstrap
   annotations:
-    argocd.argoproj.io/sync-wave: "5"
+    argocd.argoproj.io/sync-wave: "-1"
   finalizers:
     - resources-finalizer.argoproj.io
 spec:
