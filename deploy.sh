@@ -203,7 +203,47 @@ echo ""
 
 log_info "Applying root-app..."
 kubectl apply -f argocd/bootstrap/root-app.yaml
-sleep 5
+
+log_info "Waiting for root-app to sync bootstrap applications..."
+sleep 10
+
+log_info "Waiting for platform-apps Application to be created..."
+for i in {1..60}; do
+  if kubectl get application platform-apps -n argocd > /dev/null 2>&1; then
+    log_ok "platform-apps Application created"
+    break
+  fi
+  if [ $i -eq 60 ]; then
+    log_warn "Timeout waiting for platform-apps Application"
+  fi
+  sleep 2
+done
+
+log_info "Waiting for platform-apps to sync ApplicationSet..."
+for i in {1..60}; do
+  SYNC_STATUS=$(kubectl get application platform-apps -n argocd -o jsonpath='{.status.sync.status}' 2>/dev/null || echo "Unknown")
+  if [ "$SYNC_STATUS" = "Synced" ]; then
+    log_ok "platform-apps synced successfully"
+    break
+  fi
+  if [ $i -eq 60 ]; then
+    log_warn "Timeout waiting for platform-apps sync (status: $SYNC_STATUS)"
+  fi
+  sleep 2
+done
+
+log_info "Waiting for ApplicationSet to generate platform applications..."
+for i in {1..60}; do
+  APP_COUNT=$(kubectl get applications -n argocd -l app.kubernetes.io/managed-by=applicationset --no-headers 2>/dev/null | wc -l | xargs)
+  if [ "$APP_COUNT" -gt 5 ]; then
+    log_ok "ApplicationSet generated $APP_COUNT platform applications"
+    break
+  fi
+  if [ $i -eq 60 ]; then
+    log_warn "Only $APP_COUNT applications generated (expected more)"
+  fi
+  sleep 2
+done
 
 echo ""
 echo "=============================================="
