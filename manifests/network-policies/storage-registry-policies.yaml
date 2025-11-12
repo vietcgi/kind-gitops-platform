@@ -179,8 +179,12 @@ spec:
         app: harbor
     toPorts:
     - ports:
+      - port: "80"
+        protocol: TCP  # Harbor Service port
       - port: "5000"
         protocol: TCP  # Docker Registry V2
+      - port: "5432"
+        protocol: TCP  # PostgreSQL database
       - port: "8080"
         protocol: TCP  # Harbor Core/UI
       - port: "8443"
@@ -211,8 +215,12 @@ spec:
         app: harbor
     toPorts:
     - ports:
+      - port: "80"
+        protocol: TCP  # Harbor Service port
       - port: "5000"
         protocol: TCP
+      - port: "5432"
+        protocol: TCP  # PostgreSQL database
       - port: "8080"
         protocol: TCP
       - port: "8443"

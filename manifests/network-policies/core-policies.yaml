@@ -19,9 +19,7 @@ spec:
       k8s-app: kube-dns
   description: "Allow DNS resolution from all pods to CoreDNS"
   ingress:
-  - fromEndpoints:
-    - matchLabels: {}  # Allow from all pods
-    toPorts:
+  - toPorts:
     - ports:
       - port: "53"
         protocol: UDP
