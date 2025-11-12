@@ -142,7 +142,7 @@ spec:
         namespace: longhorn-system
         repoURL: https://charts.longhorn.io
         chart: longhorn
-        version: "1.10.0"
+        version: "1.10.1"
         syncPolicy: aggressive
         group: infrastructure
         syncWave: 4
