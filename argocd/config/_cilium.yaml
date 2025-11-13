@@ -14,7 +14,7 @@ spec:
     helm:
       releaseName: cilium
       values: |
-        kubeProxyReplacement: strict
+        kubeProxyReplacement: true
         k8sServiceHost: "kubernetes.default.svc.cluster.local"
         k8sServicePort: 443
         ebpf:
