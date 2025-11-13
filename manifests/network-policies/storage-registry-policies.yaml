@@ -2,62 +2,34 @@
 # Storage and Registry Network Policies
 # Longhorn (persistent volume management) and Harbor (container registry)
 
-# Longhorn Storage - Replication and Manager Communication
+# Longhorn Storage - Allow all internal namespace communication
 # Namespace: longhorn-system
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
 metadata:
-  name: longhorn-allow-replication
+  name: longhorn-allow-all-internal
   namespace: longhorn-system
   labels:
     app.kubernetes.io/name: network-policies
     app.kubernetes.io/component: storage
 spec:
-  endpointSelector:
-    matchLabels:
-      app.kubernetes.io/name: longhorn
-  description: "Allow Longhorn manager and engine communication for volume replication"
+  endpointSelector: {}
+  description: "Allow all internal Longhorn communication including webhook self-calls"
   ingress:
-  # Kubernetes API server calling webhooks
+  # Allow all traffic from within longhorn-system namespace
+  - fromEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: longhorn-system
+  # Allow traffic from kube-apiserver (for webhooks)
   - fromEntities:
     - "kube-apiserver"
     - "host"
-    toPorts:
-    - ports:
-      - port: "9502"
-        protocol: TCP  # Webhook service
-  # Longhorn engine to engine communication
-  - fromEndpoints:
-    - matchLabels:
-        app: longhorn-engine
-    toPorts:
-    - ports:
-      - port: "9500"
-        protocol: TCP  # Engine API
-      - port: "9501"
-        protocol: TCP  # Volume replication
-  # Longhorn manager to engine
-  - fromEndpoints:
-    - matchLabels:
-        app: longhorn-manager
-    toPorts:
-    - ports:
-      - port: "9500"
-        protocol: TCP
-      - port: "9502"
-        protocol: TCP  # Webhook service
-      - port: "8500"
-        protocol: TCP
-  # Local kubelet for volume attachment
+  # Allow traffic from nodes/kubelet
   - fromEndpoints:
     - matchLabels:
         component: kubelet
-    toPorts:
-    - ports:
-      - port: "9500"
-        protocol: TCP
   egress:
-  # Longhorn to Longhorn (same namespace) - allow all ports for internal communication
+  # Allow all traffic to longhorn-system namespace (including self)
   - toEndpoints:
     - matchLabels:
         io.kubernetes.pod.namespace: longhorn-system
@@ -75,39 +47,6 @@ spec:
   # Kubernetes API server access
   - toEntities:
     - "kube-apiserver"
-
----
-# Longhorn UI and API Access
-# Allow Longhorn dashboard access from monitoring/admin
-apiVersion: cilium.io/v2
-kind: CiliumNetworkPolicy
-metadata:
-  name: longhorn-allow-ui-access
-  namespace: longhorn-system
-  labels:
-    app.kubernetes.io/name: network-policies
-    app.kubernetes.io/component: storage
-spec:
-  endpointSelector:
-    matchLabels:
-      app: longhorn-manager
-  description: "Allow access to Longhorn UI and API"
-  ingress:
-  # From monitoring namespace
-  - fromEndpoints:
-    - matchLabels:
-        io.kubernetes.pod.namespace: monitoring
-    toPorts:
-    - ports:
-      - port: "8080"
-        protocol: TCP  # UI/API
-  # From local dashboard access
-  - fromEntities:
-    - "host"
-    toPorts:
-    - ports:
-      - port: "8080"
-        protocol: TCP
 
 ---
 # Harbor Container Registry - Core Communication
