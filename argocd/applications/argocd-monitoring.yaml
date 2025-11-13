@@ -1,0 +1,32 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: platform-monitoring
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: platform-monitoring
+    app.kubernetes.io/component: monitoring
+  annotations:
+    argocd.argoproj.io/manifest-generate-paths: "."
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/vietcgi/kubernetes-platform-stack
+    targetRevision: main
+    path: manifests/monitoring
+  destination:
+    server: https://kubernetes.default.svc
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - PrunePropagationPolicy=foreground
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m

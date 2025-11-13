@@ -1,0 +1,125 @@
+---
+# ArgoCD Prometheus Alerting Rules
+# Monitor GitOps operations and alert on sync failures
+
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: argocd-alerts
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: argocd
+    app.kubernetes.io/component: monitoring
+    prometheus: kube-prometheus
+spec:
+  groups:
+  - name: argocd
+    interval: 30s
+    rules:
+    # Application Sync Failure
+    - alert: ArgoCDApplicationSyncFailed
+      expr: |
+        argocd_app_info{sync_status="OutOfSync", health_status!="Healthy"} == 1
+      for: 5m
+      labels:
+        severity: warning
+        component: argocd
+      annotations:
+        summary: "ArgoCD Application {{ $labels.name }} sync failed"
+        description: "Application {{ $labels.name }} in namespace {{ $labels.namespace }} has been out of sync for more than 5 minutes."
+
+    # Application Health Degraded
+    - alert: ArgoCDApplicationUnhealthy
+      expr: |
+        argocd_app_info{health_status=~"Degraded|Missing|Unknown"} == 1
+      for: 10m
+      labels:
+        severity: critical
+        component: argocd
+      annotations:
+        summary: "ArgoCD Application {{ $labels.name }} is unhealthy"
+        description: "Application {{ $labels.name }} health status is {{ $labels.health_status }} for more than 10 minutes."
+
+    # Application Sync Failed (Operation)
+    - alert: ArgoCDSyncOperationFailed
+      expr: |
+        rate(argocd_app_sync_total{phase="Failed"}[5m]) > 0
+      for: 1m
+      labels:
+        severity: warning
+        component: argocd
+      annotations:
+        summary: "ArgoCD sync operations are failing"
+        description: "Application {{ $labels.name }} has had failed sync operations in the last 5 minutes."
+
+    # Repository Connection Failure
+    - alert: ArgoCDRepoConnectionFailed
+      expr: |
+        argocd_git_request_total{request_type="fetch"} - argocd_git_request_total{request_type="fetch"} offset 5m > 10
+      for: 5m
+      labels:
+        severity: warning
+        component: argocd
+      annotations:
+        summary: "ArgoCD repository connection issues"
+        description: "ArgoCD is experiencing issues connecting to Git repositories."
+
+    # ArgoCD API Server Down
+    - alert: ArgoCDServerDown
+      expr: |
+        up{job="argocd-server-metrics"} == 0
+      for: 2m
+      labels:
+        severity: critical
+        component: argocd
+      annotations:
+        summary: "ArgoCD API server is down"
+        description: "ArgoCD API server has been down for more than 2 minutes."
+
+    # ArgoCD Repo Server Down
+    - alert: ArgoCDRepoServerDown
+      expr: |
+        up{job="argocd-repo-server-metrics"} == 0
+      for: 2m
+      labels:
+        severity: critical
+        component: argocd
+      annotations:
+        summary: "ArgoCD repo server is down"
+        description: "ArgoCD repo server has been down for more than 2 minutes."
+
+    # Application Controller High Memory
+    - alert: ArgoCDControllerHighMemory
+      expr: |
+        container_memory_usage_bytes{container="argocd-application-controller"} / container_spec_memory_limit_bytes{container="argocd-application-controller"} > 0.9
+      for: 10m
+      labels:
+        severity: warning
+        component: argocd
+      annotations:
+        summary: "ArgoCD controller high memory usage"
+        description: "ArgoCD application controller is using more than 90% of its memory limit."
+
+    # Too Many Applications Pending
+    - alert: ArgoCDTooManyPendingApplications
+      expr: |
+        count(argocd_app_info{sync_status="OutOfSync"}) > 10
+      for: 15m
+      labels:
+        severity: info
+        component: argocd
+      annotations:
+        summary: "Too many ArgoCD applications out of sync"
+        description: "More than 10 applications have been out of sync for more than 15 minutes."
+
+    # Application Auto Sync Disabled
+    - alert: ArgoCDAutoSyncDisabled
+      expr: |
+        argocd_app_info{autosync_enabled="false"} == 1
+      for: 24h
+      labels:
+        severity: info
+        component: argocd
+      annotations:
+        summary: "ArgoCD application {{ $labels.name }} has auto-sync disabled"
+        description: "Application {{ $labels.name }} has had auto-sync disabled for more than 24 hours."
