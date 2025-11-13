@@ -304,6 +304,9 @@ spec:
         protocol: TCP
       - port: "9402"
         protocol: TCP  # Webhook
+  # Allow Kubernetes API server to call webhook
+  - fromEntities:
+    - "kube-apiserver"
   egress:
   # Allow communication within namespace
   - toEndpoints:
