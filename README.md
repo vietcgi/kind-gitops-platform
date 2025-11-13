@@ -2,7 +2,7 @@
 
 A complete Kubernetes platform running in KIND with Cilium, Istio, ArgoCD, and observability stack. Production-ready with security, networking, and GitOps.
 
-Current Status: 100% healthy (17/17 applications deployed)
+Current Status: Production-ready (30 applications deployed and managed via GitOps)
 
 ## Quick Start
 
@@ -33,28 +33,44 @@ kubectl -n argocd get secret argocd-initial-admin-secret \
 
 ### Access Services
 
+All services are accessible via Kong ingress with *.demo.local domains:
+
 ```bash
 # ArgoCD (GitOps)
-kubectl port-forward -n argocd svc/argocd-server 8080:443 &
-# https://localhost:8080
+http://argocd.demo.local
 
 # Prometheus (Metrics)
-kubectl port-forward -n monitoring svc/kube-prometheus-stack-prometheus 9090:9090 &
-# http://localhost:9090
+http://prometheus.demo.local
 
 # Grafana (Dashboards)
-kubectl port-forward -n monitoring svc/kube-prometheus-stack-grafana 3000:80 &
-# http://localhost:3000
+http://grafana.demo.local
+# Default credentials: admin / prom-operator
 
-# Kong Admin (API Gateway)
-kubectl port-forward -n api-gateway svc/kong-kong-admin 8444:8444 &
-# https://localhost:8444/admin
+# Vault (Secrets Management)
+http://vault.demo.local
+
+# Jaeger (Distributed Tracing)
+http://jaeger.demo.local
+
+# Harbor (Container Registry)
+http://harbor.demo.local
+```
+
+Add /etc/hosts entries for local access:
+```bash
+echo "127.0.0.1 argocd.demo.local prometheus.demo.local grafana.demo.local vault.demo.local jaeger.demo.local harbor.demo.local" | sudo tee -a /etc/hosts
+```
+
+Get ArgoCD admin password:
+```bash
+kubectl -n argocd get secret argocd-initial-admin-secret \
+  -o jsonpath='{.data.password}' | base64 -d
 ```
 
 ## What's Included
 
 ### Networking
-- Cilium v1.18.3 (eBPF-based CNI with LoadBalancer support)
+- Cilium v1.18.3 (eBPF-based CNI with LoadBalancer support, managed by ArgoCD)
 - Istio v1.28.0 (service mesh with mTLS)
 - Kong v3.x (API gateway)
 - External DNS (automatic DNS management)
