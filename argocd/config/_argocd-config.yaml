@@ -11,7 +11,7 @@ spec:
   source:
     repoURL: https://github.com/vietcgi/kubernetes-platform-stack
     targetRevision: main
-    path: manifests/argocd
+    path: argocd/config
 
   destination:
     server: https://kubernetes.default.svc
