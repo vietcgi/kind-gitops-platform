@@ -70,7 +70,7 @@ kubectl -n argocd get secret argocd-initial-admin-secret \
 ## What's Included
 
 ### Networking
-- Cilium v1.18.3 (eBPF-based CNI with LoadBalancer support, managed by ArgoCD)
+- Cilium v1.18.4 (eBPF-based CNI with LoadBalancer support, managed by ArgoCD)
 - Istio v1.28.0 (service mesh with mTLS)
 - Kong v3.x (API gateway)
 - External DNS (automatic DNS management)

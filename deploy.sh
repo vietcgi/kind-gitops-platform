@@ -183,7 +183,7 @@ log_info "Installing ArgoCD using Helm with custom values..."
 helm upgrade --install argocd argoproj/argo-cd \
   --namespace argocd \
   --values "$SCRIPT_DIR/helm/argocd/values.yaml" \
-  --version 7.2.0 \
+  --version 9.1.2 \
   --wait
 
 log_info "Waiting for ArgoCD server..."
