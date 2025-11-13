@@ -268,10 +268,10 @@ spec:
   # ArgoCD needs to reach Kubernetes API server
   - toEntities:
     - "kube-apiserver"
-  # ArgoCD needs to reach GitHub and external Git repos
-  - toFQDNs:
-    - matchName: "github.com"
-    - matchPattern: "*.githubusercontent.com"
+  # ArgoCD needs to reach external Git repos and Helm registries
+  # Using world entity instead of FQDN rules for reliability
+  - toEntities:
+    - "world"
     toPorts:
     - ports:
       - port: "443"
