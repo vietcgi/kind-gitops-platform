@@ -640,6 +640,13 @@ spec:
           namespace: monitoring
           jsonPointers:
             - /status/loadBalancer
+        # Cilium DaemonSet (ignore appArmorProfile schema field not in CRD)
+        - group: apps
+          kind: DaemonSet
+          name: cilium
+          namespace: kube-system
+          jsonPointers:
+            - /spec/template/spec/securityContext/appArmorProfile
         # Vault StatefulSet (ignore dynamic fields)
         - group: apps
           kind: StatefulSet
