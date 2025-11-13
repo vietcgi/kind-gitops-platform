@@ -20,8 +20,8 @@ Current Status: Production-ready (30 applications deployed and managed via GitOp
 git clone https://github.com/vietcgi/kubernetes-platform-stack.git
 cd kubernetes-platform-stack
 
-# Run deployment
-./deploy.sh
+# Run deployment (--force recreates cluster if exists)
+./deploy.sh --force
 
 # Watch progress
 watch kubectl get applications -n argocd
@@ -344,20 +344,20 @@ Adjust replica counts in helm/*/values.yaml if needed.
 
 ```
 .
-├── helm/                    # Helm charts
-│   ├── my-app/             # Sample application
+├── helm/                    # Helm charts for all platform services
 │   ├── cilium/             # CNI networking
 │   ├── istio/              # Service mesh
 │   ├── prometheus/         # Observability
 │   ├── vault/              # Secrets management
+│   ├── kong/               # API gateway
+│   ├── longhorn/           # Storage
 │   └── ...                 # Other platform charts
 ├── argocd/
 │   ├── applications/       # Individual app definitions
-│   │   ├── my-app.yaml
 │   │   ├── kong-ingress.yaml
 │   │   └── network-policies.yaml
 │   ├── applicationsets/
-│   │   └── platform-apps.yaml  # Generates most platform apps
+│   │   └── platform-apps.yaml  # Generates 30 platform apps
 ├── manifests/
 │   ├── network-policies/   # Centralized network policies
 │   ├── cilium/             # Cilium config
