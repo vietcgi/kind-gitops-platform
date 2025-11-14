@@ -50,6 +50,18 @@ servers:
 serviceMonitor:
   enabled: false
 
+# Tolerations for control plane and not-ready nodes during bootstrap
+tolerations:
+- key: node.kubernetes.io/not-ready
+  operator: Exists
+  effect: NoSchedule
+- key: node-role.kubernetes.io/control-plane
+  operator: Exists
+  effect: NoSchedule
+- key: CriticalAddonsOnly
+  operator: Exists
+  effect: NoExecute
+
 # Pod disruption budget - use valid Kubernetes format
 podDisruptionBudget:
   minAvailable: 1

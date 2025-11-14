@@ -315,6 +315,16 @@ spec:
               enabled: false
             podDisruptionBudget:
               minAvailable: 1
+            tolerations:
+            - key: node.kubernetes.io/not-ready
+              operator: Exists
+              effect: NoSchedule
+            - key: node-role.kubernetes.io/control-plane
+              operator: Exists
+              effect: NoSchedule
+            - key: CriticalAddonsOnly
+              operator: Exists
+              effect: NoExecute
             podLabels:
               app.kubernetes.io/instance: coredns
               app.kubernetes.io/name: coredns
