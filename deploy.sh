@@ -106,15 +106,25 @@ helm repo update coredns
 
 # Clean up existing CoreDNS resources without proper Helm ownership metadata
 # This can occur on first deployment before Helm can adopt the resources
-for resource in configmap service; do
-    if kubectl get $resource coredns -n kube-system &>/dev/null; then
-        release_name=$(kubectl get $resource coredns -n kube-system -o jsonpath='{.metadata.annotations.meta\.helm\.sh/release-name}' 2>/dev/null)
-        if [ -z "$release_name" ]; then
-            log_warn "CoreDNS $resource exists without Helm ownership metadata, cleaning up..."
-            kubectl delete $resource coredns -n kube-system --ignore-not-found
-        fi
+log_info "Checking for existing CoreDNS resources..."
+
+# Delete ConfigMap if it lacks Helm ownership
+if kubectl get configmap coredns -n kube-system &>/dev/null; then
+    helm_owner=$(kubectl get configmap coredns -n kube-system -o jsonpath='{.metadata.labels.app\.kubernetes\.io/managed-by}' 2>/dev/null)
+    if [ "$helm_owner" != "Helm" ]; then
+        log_warn "CoreDNS ConfigMap exists without Helm ownership, deleting..."
+        kubectl delete configmap coredns -n kube-system 2>/dev/null || true
     fi
-done
+fi
+
+# Delete Service if it lacks Helm ownership
+if kubectl get service kube-dns -n kube-system &>/dev/null; then
+    helm_owner=$(kubectl get service kube-dns -n kube-system -o jsonpath='{.metadata.labels.app\.kubernetes\.io/managed-by}' 2>/dev/null)
+    if [ "$helm_owner" != "Helm" ]; then
+        log_warn "CoreDNS Service exists without Helm ownership, deleting..."
+        kubectl delete service kube-dns -n kube-system 2>/dev/null || true
+    fi
+fi
 
 helm upgrade --install coredns coredns/coredns \
   --namespace kube-system \
