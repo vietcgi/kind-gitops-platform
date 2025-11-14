@@ -314,7 +314,6 @@ spec:
             serviceMonitor:
               enabled: false
             podDisruptionBudget:
-              enabled: true
               minAvailable: 1
             {{ else if eq .name "cilium" }}
             # Cilium CNI - Critical networking infrastructure
@@ -932,6 +931,13 @@ spec:
             - /spec
             - /metadata/annotations
             - /metadata/labels
+        # CoreDNS Deployment (immutable selector field set at creation, ignore selector changes)
+        - group: apps
+          kind: Deployment
+          name: coredns
+          namespace: kube-system
+          jsonPointers:
+            - /spec/selector
   goTemplateOptions: ["missingkey=error"]
   templatePatch: |
     metadata:
