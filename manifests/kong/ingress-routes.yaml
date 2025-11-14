@@ -6,9 +6,6 @@ kind: Ingress
 metadata:
   name: argocd-ingress
   namespace: argocd
-  annotations:
-    konghq.com/protocols: "https"
-    konghq.com/https-redirect-status-code: "301"
 spec:
   ingressClassName: kong
   rules:
@@ -21,7 +18,7 @@ spec:
           service:
             name: argocd-server
             port:
-              number: 443
+              number: 80
 
 ---
 apiVersion: networking.k8s.io/v1
