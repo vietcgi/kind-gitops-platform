@@ -114,37 +114,21 @@ if helm list -n kube-system 2>/dev/null | grep -q "coredns"; then
     helm_status=$(helm list -n kube-system -o json 2>/dev/null | grep -o '"status":"[^"]*"' | head -1 | cut -d'"' -f4)
     if [ "$helm_status" = "pending-install" ] || [ "$helm_status" = "pending-upgrade" ]; then
         log_warn "Found stuck Helm release in $helm_status state, deleting..."
-        helm delete coredns -n kube-system 2>/dev/null || true
-    fi
-fi
-
-# Delete ConfigMap if it lacks Helm ownership annotation
-if kubectl get configmap coredns -n kube-system &>/dev/null; then
-    helm_release=$(kubectl get configmap coredns -n kube-system -o jsonpath='{.metadata.annotations.meta\.helm\.sh/release-name}' 2>/dev/null)
-    if [ "$helm_release" != "coredns" ]; then
-        log_warn "CoreDNS ConfigMap exists without Helm ownership, deleting..."
-        kubectl delete configmap coredns -n kube-system 2>/dev/null || true
-    fi
-fi
-
-# Delete Service if it lacks Helm ownership annotation
-if kubectl get service kube-dns -n kube-system &>/dev/null; then
-    helm_release=$(kubectl get service kube-dns -n kube-system -o jsonpath='{.metadata.annotations.meta\.helm\.sh/release-name}' 2>/dev/null)
-    if [ "$helm_release" != "coredns" ]; then
-        log_warn "CoreDNS Service exists without Helm ownership, deleting..."
-        kubectl delete service kube-dns -n kube-system 2>/dev/null || true
+        helm delete coredns -n kube-system --wait 2>/dev/null || true
+        sleep 2
     fi
 fi
 
 # Delete Deployment if it exists and is not managed by Helm
 # (Kind creates a default Deployment that needs to be replaced)
+# Only delete the Deployment - let Helm handle Service and ConfigMap
 if kubectl get deployment coredns -n kube-system &>/dev/null; then
     helm_release=$(kubectl get deployment coredns -n kube-system -o jsonpath='{.metadata.annotations.meta\.helm\.sh/release-name}' 2>/dev/null)
     if [ "$helm_release" != "coredns" ]; then
         log_warn "CoreDNS Deployment exists without Helm ownership, deleting..."
-        kubectl delete deployment coredns -n kube-system 2>/dev/null || true
+        kubectl delete deployment coredns -n kube-system --wait=false 2>/dev/null || true
         # Wait for Deployment to be fully deleted before Helm install
-        sleep 3
+        sleep 2
     fi
 fi
 
