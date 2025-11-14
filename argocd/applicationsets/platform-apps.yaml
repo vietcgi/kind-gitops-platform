@@ -21,9 +21,11 @@ spec:
         repoURL: https://helm.cilium.io
         chart: cilium
         version: "1.18.4"
-        syncPolicy: conservative
+        syncPolicy: conservative-bootstrap
         group: infrastructure
-        syncWave: -1
+        syncWave: "-5"
+        tier: infrastructure
+        criticality: critical
 
       # DNS - Critical for cluster resolution
       - name: coredns
@@ -31,9 +33,11 @@ spec:
         repoURL: https://coredns.github.io/helm
         chart: coredns
         version: "1.45.0"
-        syncPolicy: conservative
+        syncPolicy: conservative-bootstrap
         group: infrastructure
-        syncWave: -1
+        syncWave: "-5"
+        tier: infrastructure
+        criticality: critical
 
       # Observability Stack
       - name: prometheus
@@ -43,7 +47,9 @@ spec:
         version: "79.5.0"
         syncPolicy: aggressive
         group: observability
-        syncWave: 1
+        syncWave: "5"
+        tier: observability
+        criticality: high
 
       - name: metrics-server
         namespace: kube-system
@@ -52,7 +58,9 @@ spec:
         version: "3.13.0"
         syncPolicy: aggressive
         group: infrastructure
-        syncWave: 0
+        syncWave: "5"
+        tier: infrastructure
+        criticality: high
 
       - name: loki
         namespace: monitoring
@@ -61,7 +69,9 @@ spec:
         version: "2.10.3"
         syncPolicy: aggressive
         group: observability
-        syncWave: 1
+        syncWave: "5"
+        tier: observability
+        criticality: high
 
       - name: tempo
         namespace: monitoring
@@ -70,7 +80,9 @@ spec:
         version: "1.24.0"
         syncPolicy: aggressive
         group: observability
-        syncWave: 1
+        syncWave: "5"
+        tier: observability
+        criticality: medium
 
       # Service Mesh
       - name: istio
@@ -80,7 +92,9 @@ spec:
         version: "1.28.0"
         syncPolicy: conservative
         group: service_mesh
-        syncWave: 2
+        syncWave: "0"
+        tier: service_mesh
+        criticality: medium
 
       # Security Layer
       - name: cert-manager
@@ -90,7 +104,9 @@ spec:
         version: "v1.19.1"
         syncPolicy: aggressive
         group: security
-        syncWave: 0
+        syncWave: "-1"
+        tier: infrastructure
+        criticality: high
 
       - name: vault
         namespace: vault
@@ -99,7 +115,9 @@ spec:
         version: "0.31.0"
         syncPolicy: aggressive
         group: security
-        syncWave: 3
+        syncWave: "-1"
+        tier: security
+        criticality: high
 
       - name: falco
         namespace: falco
@@ -108,7 +126,9 @@ spec:
         version: "7.0.1"
         syncPolicy: aggressive
         group: security
-        syncWave: 3
+        syncWave: "-3"
+        tier: security
+        criticality: high
 
       - name: kyverno
         namespace: kyverno
@@ -117,7 +137,9 @@ spec:
         version: "3.6.0"
         syncPolicy: aggressive
         group: security
-        syncWave: 3
+        syncWave: "-3"
+        tier: security
+        criticality: critical
 
       - name: sealed-secrets
         namespace: sealed-secrets
@@ -126,7 +148,9 @@ spec:
         version: "2.17.9"
         syncPolicy: aggressive
         group: security
-        syncWave: 3
+        syncWave: "-1"
+        tier: security
+        criticality: high
 
       # Governance Layer
       - name: gatekeeper
@@ -136,7 +160,9 @@ spec:
         version: "3.20.1"
         syncPolicy: aggressive
         group: governance
-        syncWave: 3
+        syncWave: "-3"
+        tier: security
+        criticality: critical
 
       # Enterprise Features - Ingress & API Management
       - name: external-dns
@@ -146,7 +172,9 @@ spec:
         version: "1.19.0"
         syncPolicy: aggressive
         group: infrastructure
-        syncWave: 0
+        syncWave: "0"
+        tier: infrastructure
+        criticality: high
 
       - name: kong
         namespace: api-gateway
@@ -155,7 +183,9 @@ spec:
         version: "2.52.0"
         syncPolicy: aggressive
         group: infrastructure
-        syncWave: 2
+        syncWave: "0"
+        tier: platform
+        criticality: medium
 
       # Enterprise Features - Storage & Backup
       - name: longhorn
@@ -165,7 +195,9 @@ spec:
         version: "1.10.1"
         syncPolicy: aggressive
         group: infrastructure
-        syncWave: 4
+        syncWave: "10"
+        tier: storage
+        criticality: high
 
       - name: velero
         namespace: velero
@@ -174,7 +206,9 @@ spec:
         version: "11.1.1"
         syncPolicy: aggressive
         group: infrastructure
-        syncWave: 4
+        syncWave: "10"
+        tier: storage
+        criticality: high
 
       # Enterprise Features - Advanced Observability
       - name: jaeger
@@ -184,7 +218,9 @@ spec:
         version: "3.4.1"
         syncPolicy: aggressive
         group: observability
-        syncWave: 2
+        syncWave: "5"
+        tier: observability
+        criticality: medium
 
       # Synthetic Monitoring - Endpoint Availability
       - name: blackbox-exporter
@@ -194,7 +230,9 @@ spec:
         version: "11.4.2"
         syncPolicy: aggressive
         group: observability
-        syncWave: 2
+        syncWave: "5"
+        tier: observability
+        criticality: medium
 
       # Enterprise Features - Container Registry
       - name: harbor
@@ -204,7 +242,9 @@ spec:
         version: "1.18.0"
         syncPolicy: aggressive
         group: infrastructure
-        syncWave: 4
+        syncWave: "15"
+        tier: platform
+        criticality: medium
 
   template:
     metadata:
@@ -213,6 +253,9 @@ spec:
         app.kubernetes.io/name: '{{ .name }}'
         app.kubernetes.io/group: '{{ .group }}'
         app.kubernetes.io/managed-by: applicationset
+        app.kubernetes.io/part-of: platform
+        tier: '{{ .tier }}'
+        criticality: '{{ .criticality }}'
       finalizers:
         - resources-finalizer.argocd.argoproj.io
     spec:
@@ -853,9 +896,19 @@ spec:
         argocd.argoproj.io/sync-wave: "{{ .syncWave }}"
         {{- end }}
     spec:
+      {{- if eq .syncPolicy "conservative-bootstrap" }}
+      syncPolicy:
+        syncOptions:
+          - RespectIgnoreDifferences=true
+          - ServerSideApply=true
+        automated:
+          prune: false
+          selfHeal: true
+      {{- else }}
       syncPolicy:
         automated:
           prune: {{ if eq .syncPolicy "aggressive" }}true{{ else }}false{{ end }}
+      {{- end }}
       # ignoreDifferences are already defined in template.spec, but we can't merge them here in templatePatch
       # The ignoreDifferences rules will apply to all generated applications
 

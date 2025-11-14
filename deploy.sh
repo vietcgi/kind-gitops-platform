@@ -276,11 +276,21 @@ while [ $(date +%s) -lt $MONITORING_END ]; do
 
   echo -ne "\r[$ELAPSED_MIN m] Monitoring... ${REMAINING_MIN}m ${REMAINING_SEC}s remaining"
 
+  # Always check node health
   check_node_health > /dev/null 2>&1
+
+  # Dynamically check critical applications
+  CRITICAL_APPS=$(kubectl get applications -n argocd -l criticality=critical -o jsonpath='{.items[*].metadata.name}' 2>/dev/null || echo "")
+  for app in $CRITICAL_APPS; do
+    check_argocd_app_sync "$app" > /dev/null 2>&1
+    check_argocd_app_health "$app" > /dev/null 2>&1
+  done
+
+  # Check root-app separately (always critical)
   check_argocd_app_sync "root-app" > /dev/null 2>&1
-  check_argocd_app_sync "coredns-config" > /dev/null 2>&1
-  check_argocd_app_sync "cilium" > /dev/null 2>&1
   check_argocd_app_health "root-app" > /dev/null 2>&1
+
+  # Check critical pods
   check_pod_health "kube-system" "k8s-app=kube-dns" > /dev/null 2>&1
   check_pod_health "kube-system" "k8s-app=cilium" > /dev/null 2>&1
 
@@ -290,9 +300,16 @@ done
 echo -e "\n"
 log_ok "Cluster bootstrap complete!"
 
+# Show root-app first
 get_app_status "root-app"
-get_app_status "coredns-config"
-get_app_status "cilium"
+
+# Show all critical applications
+echo ""
+log_info "Critical Applications Status:"
+CRITICAL_APPS=$(kubectl get applications -n argocd -l criticality=critical -o jsonpath='{.items[*].metadata.name}' 2>/dev/null || echo "")
+for app in $CRITICAL_APPS; do
+  get_app_status "$app"
+done
 get_pod_count "argocd"
 get_pod_count "kube-system"
 
