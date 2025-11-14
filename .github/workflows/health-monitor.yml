@@ -1,0 +1,185 @@
+name: Continuous Health Monitoring
+
+on:
+  schedule:
+    # Run every 6 hours
+    - cron: '0 */6 * * *'
+  workflow_dispatch:  # Allow manual triggering
+
+jobs:
+  health-check:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup kubeconfig
+        run: |
+          mkdir -p $HOME/.kube
+          echo "${{ secrets.KUBECONFIG }}" | base64 -d > $HOME/.kube/config
+          chmod 600 $HOME/.kube/config
+
+      - name: Install kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'latest'
+
+      - name: Run health checks
+        id: health_check
+        run: |
+          # Make health check script executable
+          chmod +x scripts/health-check.sh
+
+          # Run health checks
+          if ./scripts/health-check.sh > health-check.log 2>&1; then
+            echo "status=healthy" >> $GITHUB_OUTPUT
+            echo "All systems healthy"
+          else
+            echo "status=degraded" >> $GITHUB_OUTPUT
+            echo "Health check detected issues"
+            cat health-check.log
+          fi
+
+      - name: Get ArgoCD Application Status
+        if: steps.health_check.outputs.status == 'degraded'
+        id: argocd_status
+        run: |
+          echo "Collecting ArgoCD application statuses..."
+
+          # Get all applications
+          kubectl get applications -n argocd -o json > apps.json
+
+          # Parse and format status
+          cat apps.json | jq -r '.items[] |
+            "- **\(.metadata.name)**: Sync=\(.status.sync.status // "Unknown"), Health=\(.status.health.status // "Unknown")"' \
+            > app-status.txt
+
+          # Count unhealthy apps
+          UNHEALTHY=$(cat apps.json | jq '[.items[] | select(.status.health.status != "Healthy")] | length')
+          echo "unhealthy_count=$UNHEALTHY" >> $GITHUB_OUTPUT
+
+      - name: Get Pod Status
+        if: steps.health_check.outputs.status == 'degraded'
+        id: pod_status
+        run: |
+          echo "Collecting pod statuses across critical namespaces..."
+
+          NAMESPACES="argocd cert-manager istio-system monitoring kube-system vault"
+
+          for ns in $NAMESPACES; do
+            echo "## Namespace: $ns" >> pod-status.txt
+            kubectl get pods -n $ns 2>/dev/null | grep -v "Running.*0/" | tail -n +2 >> pod-status.txt || echo "No issues" >> pod-status.txt
+            echo "" >> pod-status.txt
+          done
+
+      - name: Create degradation issue
+        if: steps.health_check.outputs.status == 'degraded'
+        run: |
+          TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          UNHEALTHY="${{ steps.argocd_status.outputs.unhealthy_count }}"
+
+          cat > issue.md << 'EOF'
+          ## Cluster Health Degradation Detected
+
+          **Timestamp:** $TIMESTAMP
+          **Unhealthy Applications:** $UNHEALTHY
+
+          ### ArgoCD Application Status
+
+          $(cat app-status.txt)
+
+          ### Pod Status Issues
+
+          ```
+          $(cat pod-status.txt)
+          ```
+
+          ### Health Check Log
+
+          ```
+          $(cat health-check.log | tail -100)
+          ```
+
+          ### Recommended Actions
+
+          1. **Check ArgoCD UI:**
+             - Navigate to ArgoCD dashboard
+             - Review failing applications
+             - Check sync errors and application events
+
+          2. **Investigate Pod Issues:**
+             ```bash
+             # Check pod details
+             kubectl describe pod <pod-name> -n <namespace>
+
+             # Review pod logs
+             kubectl logs <pod-name> -n <namespace> --tail=100
+
+             # Check recent events
+             kubectl get events -n <namespace> --sort-by='.lastTimestamp' | tail -20
+             ```
+
+          3. **Review Recent Changes:**
+             - Check recent commits: https://github.com/${{ github.repository }}/commits/main
+             - Review recent PRs: https://github.com/${{ github.repository }}/pulls?q=is%3Apr+is%3Aclosed
+             - Check Renovate updates
+
+          4. **Manual Health Check:**
+             ```bash
+             # Run health check script
+             ./scripts/health-check.sh
+
+             # Check all ArgoCD apps
+             kubectl get applications -n argocd
+
+             # Review specific app
+             argocd app get <app-name>
+             ```
+
+          ### Debug Information
+
+          - Workflow run: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          - Cluster context: Production
+          - Monitoring period: Last 6 hours
+
+          ### Next Steps
+
+          - [ ] Investigate root cause
+          - [ ] Determine if rollback needed
+          - [ ] Update monitoring thresholds if false positive
+          - [ ] Document incident and resolution
+          EOF
+
+          # Replace variables
+          sed -i "s|\$TIMESTAMP|$TIMESTAMP|g" issue.md
+          sed -i "s|\$UNHEALTHY|$UNHEALTHY|g" issue.md
+
+          # Create GitHub issue
+          gh issue create \
+            --title "Cluster Health Degradation - $UNHEALTHY Unhealthy Apps" \
+            --body-file issue.md \
+            --label "health-monitoring,automated,production"
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Post healthy status
+        if: steps.health_check.outputs.status == 'healthy'
+        run: |
+          echo "All systems healthy - no action required"
+          echo "Checked at: $(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+
+          # Optional: Close any open health monitoring issues
+          gh issue list \
+            --label "health-monitoring" \
+            --state open \
+            --json number \
+            --jq '.[].number' | while read issue_number; do
+              gh issue comment $issue_number --body "Health check passed at $(date -u). System recovered."
+              gh issue close $issue_number
+            done || true
+        env:
+          GH_TOKEN: ${{ github.token }}

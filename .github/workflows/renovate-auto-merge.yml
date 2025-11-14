@@ -1,0 +1,190 @@
+name: Renovate Auto-Merge & Health Check
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  auto-merge:
+    if: github.actor == 'renovate[bot]'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check if auto-merge approved
+        id: check_labels
+        run: |
+          PR_NUMBER="${{ github.event.pull_request.number }}"
+          LABELS=$(gh pr view $PR_NUMBER --json labels --jq '.labels[].name' | tr '\n' ',' || echo "")
+
+          if echo "$LABELS" | grep -q "manual-review-required"; then
+            echo "automerge=false" >> $GITHUB_OUTPUT
+            echo "Manual review required - skipping auto-merge"
+          else
+            echo "automerge=true" >> $GITHUB_OUTPUT
+            echo "Auto-merge approved for this update"
+          fi
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Merge PR
+        if: steps.check_labels.outputs.automerge == 'true'
+        run: |
+          PR_NUMBER="${{ github.event.pull_request.number }}"
+          gh pr merge $PR_NUMBER --squash --auto --delete-branch
+          echo "PR #$PR_NUMBER merged successfully"
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Wait for ArgoCD sync
+        if: steps.check_labels.outputs.automerge == 'true'
+        run: |
+          echo "Waiting 2 minutes for ArgoCD to detect and sync changes..."
+          sleep 120
+
+      - name: Setup kubeconfig
+        if: steps.check_labels.outputs.automerge == 'true'
+        run: |
+          mkdir -p $HOME/.kube
+          echo "${{ secrets.KUBECONFIG }}" | base64 -d > $HOME/.kube/config
+          chmod 600 $HOME/.kube/config
+
+      - name: Run health checks
+        if: steps.check_labels.outputs.automerge == 'true'
+        id: health_check
+        run: |
+          # Make health check script executable
+          chmod +x scripts/health-check.sh
+
+          # Run health checks for 10 minutes
+          echo "Running comprehensive health checks..."
+          FAILURES=0
+          MAX_CHECKS=20  # 20 checks over 10 minutes (30s intervals)
+
+          for i in $(seq 1 $MAX_CHECKS); do
+            echo "Health check $i/$MAX_CHECKS..."
+
+            if ./scripts/health-check.sh; then
+              echo "Health check passed ($i/$MAX_CHECKS)"
+            else
+              FAILURES=$((FAILURES + 1))
+              echo "Health check failed ($i/$MAX_CHECKS) - Total failures: $FAILURES"
+            fi
+
+            if [ $i -lt $MAX_CHECKS ]; then
+              sleep 30
+            fi
+          done
+
+          # Calculate failure rate
+          FAILURE_RATE=$((FAILURES * 100 / MAX_CHECKS))
+          echo "failure_rate=$FAILURE_RATE" >> $GITHUB_OUTPUT
+          echo "failures=$FAILURES" >> $GITHUB_OUTPUT
+
+          # Pass if failure rate < 25%
+          if [ $FAILURE_RATE -lt 25 ]; then
+            echo "Health checks PASSED - Failure rate: $FAILURE_RATE%"
+            exit 0
+          else
+            echo "Health checks FAILED - Failure rate: $FAILURE_RATE%"
+            exit 1
+          fi
+
+      - name: Create issue on health check failure
+        if: failure() && steps.check_labels.outputs.automerge == 'true'
+        run: |
+          PR_NUMBER="${{ github.event.pull_request.number }}"
+          PR_TITLE="${{ github.event.pull_request.title }}"
+          FAILURE_RATE="${{ steps.health_check.outputs.failure_rate }}"
+          FAILURES="${{ steps.health_check.outputs.failures }}"
+
+          # Extract app name from PR title (e.g., "Update prometheus to 47.1.0")
+          APP_NAME=$(echo "$PR_TITLE" | grep -oP 'Update \K\w+' || echo "unknown")
+
+          cat > issue.md << 'EOF'
+          ## Automated Update Failed - Health Checks
+
+          **Application:** $APP_NAME
+          **PR:** #$PR_NUMBER
+          **Failure Rate:** $FAILURE_RATE%
+          **Failed Checks:** $FAILURES/20
+          **Timestamp:** $(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+          ### Issue
+          The automated update was merged but failed health validation checks.
+
+          ### Health Check Results
+          - Total checks: 20 (over 10 minutes)
+          - Failed checks: $FAILURES
+          - Failure rate: $FAILURE_RATE%
+          - Threshold: 25%
+
+          ### Immediate Actions
+          1. Check current status:
+             ```bash
+             kubectl get application $APP_NAME -n argocd
+             kubectl get pods -n $(kubectl get application $APP_NAME -n argocd -o jsonpath='{.spec.destination.namespace}')
+             ```
+
+          2. Review ArgoCD application:
+             ```bash
+             argocd app get $APP_NAME
+             argocd app diff $APP_NAME
+             ```
+
+          3. Check application logs:
+             ```bash
+             kubectl logs -n $(kubectl get application $APP_NAME -n argocd -o jsonpath='{.spec.destination.namespace}') -l app=$APP_NAME --tail=100
+             ```
+
+          4. Consider rollback if needed:
+             ```bash
+             git revert HEAD
+             git push
+             ```
+
+          ### Debug Information
+          - Workflow run: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          - PR: https://github.com/${{ github.repository }}/pull/$PR_NUMBER
+          - Commit: ${{ github.sha }}
+
+          ### Next Steps
+          - [ ] Investigate the failure cause
+          - [ ] Determine if rollback is needed
+          - [ ] Update health check thresholds if false positive
+          - [ ] Review Renovate configuration for this app
+          EOF
+
+          # Replace variables in issue
+          sed -i "s/\$APP_NAME/$APP_NAME/g" issue.md
+          sed -i "s/\$PR_NUMBER/$PR_NUMBER/g" issue.md
+          sed -i "s/\$FAILURE_RATE/$FAILURE_RATE/g" issue.md
+          sed -i "s/\$FAILURES/$FAILURES/g" issue.md
+
+          # Create GitHub issue
+          gh issue create \
+            --title "Automated Update Failed: $APP_NAME (PR #$PR_NUMBER)" \
+            --body-file issue.md \
+            --label "automated-updates,health-check-failed,urgent"
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Post success comment
+        if: success() && steps.check_labels.outputs.automerge == 'true'
+        run: |
+          PR_NUMBER="${{ github.event.pull_request.number }}"
+          FAILURE_RATE="${{ steps.health_check.outputs.failure_rate }}"
+
+          gh pr comment $PR_NUMBER --body "**Automated Update Successful**
+
+Health checks passed with $FAILURE_RATE% failure rate (threshold: 25%)
+
+All systems healthy after deployment."
+        env:
+          GH_TOKEN: ${{ github.token }}

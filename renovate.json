@@ -1,0 +1,92 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended"
+  ],
+  "timezone": "America/New_York",
+  "schedule": [
+    "after 10pm every weekday",
+    "before 5am every weekday",
+    "every weekend"
+  ],
+  "labels": ["dependencies", "automated"],
+  "assignees": ["@kevin"],
+  "prConcurrentLimit": 5,
+  "prHourlyLimit": 10,
+  "rebaseWhen": "behind-base-branch",
+  "enabledManagers": ["helm-values", "helmfile", "argocd", "regex"],
+  "separateMinorPatch": true,
+  "packageRules": [
+    {
+      "description": "Auto-merge minor and patch updates for stable apps",
+      "matchUpdateTypes": ["minor", "patch"],
+      "matchPackagePatterns": [
+        "prometheus",
+        "grafana",
+        "loki",
+        "cert-manager",
+        "external-dns",
+        "sealed-secrets"
+      ],
+      "automerge": true,
+      "automergeType": "pr",
+      "automergeStrategy": "squash"
+    },
+    {
+      "description": "Critical infrastructure - require manual approval",
+      "matchPackagePatterns": [
+        "cilium",
+        "istio",
+        "argocd",
+        "vault"
+      ],
+      "matchUpdateTypes": ["major"],
+      "automerge": false,
+      "labels": ["critical-update", "manual-review-required"]
+    },
+    {
+      "description": "Storage systems - extra caution",
+      "matchPackagePatterns": [
+        "longhorn",
+        "harbor",
+        "velero"
+      ],
+      "automerge": false,
+      "labels": ["storage-update", "manual-review-required"]
+    },
+    {
+      "description": "Security and policy - manual review",
+      "matchPackagePatterns": [
+        "gatekeeper",
+        "falco",
+        "kyverno"
+      ],
+      "automerge": false,
+      "labels": ["security-update", "manual-review-required"]
+    }
+  ],
+  "helm-values": {
+    "fileMatch": ["^charts/.+/values\\.yaml$"]
+  },
+  "argocd": {
+    "fileMatch": ["^argocd/.+\\.yaml$"]
+  },
+  "regexManagers": [
+    {
+      "description": "Update Helm chart versions in ArgoCD Application manifests",
+      "fileMatch": ["^argocd/apps/.+\\.yaml$"],
+      "matchStrings": [
+        "chart:\\s+(?<depName>\\S+)\\s+targetRevision:\\s+(?<currentValue>\\S+)"
+      ],
+      "datasourceTemplate": "helm"
+    },
+    {
+      "description": "Update container image tags",
+      "fileMatch": ["^manifests/.+\\.yaml$"],
+      "matchStrings": [
+        "image:\\s+(?<depName>\\S+):(?<currentValue>\\S+)"
+      ],
+      "datasourceTemplate": "docker"
+    }
+  ]
+}
