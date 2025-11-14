@@ -16,7 +16,7 @@ Each environment has:
 
 Directory structure:
 ```
-kubernetes-platform-stack/
+kind-gitops-platform/
 ├── environments/
 │   ├── dev/              # Development environment
 │   │   ├── argocd/

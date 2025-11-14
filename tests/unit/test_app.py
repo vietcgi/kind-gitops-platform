@@ -49,7 +49,7 @@ class TestAPIEndpoints:
         assert 'app' in data
         assert 'version' in data
         assert 'environment' in data
-        assert data['app'] == 'kubernetes-platform-stack'
+        assert data['app'] == 'kind-gitops-platform'
 
     def test_config_endpoint(self, client):
         """Test /api/v1/config endpoint"""

@@ -181,10 +181,14 @@ jobs:
           PR_NUMBER="${{ github.event.pull_request.number }}"
           FAILURE_RATE="${{ steps.health_check.outputs.failure_rate }}"
 
-          gh pr comment $PR_NUMBER --body "**Automated Update Successful**
+          cat > comment.md << 'EOF'
+          **Automated Update Successful**
 
-Health checks passed with $FAILURE_RATE% failure rate (threshold: 25%)
+          Health checks passed with $FAILURE_RATE% failure rate (threshold: 25%)
 
-All systems healthy after deployment."
+          All systems healthy after deployment.
+          EOF
+
+          gh pr comment $PR_NUMBER --body-file comment.md
         env:
           GH_TOKEN: ${{ github.token }}

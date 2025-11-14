@@ -1,4 +1,4 @@
-# Kubernetes Platform Stack
+# Kind GitOps Platform
 
 A complete Kubernetes platform running in KIND with Cilium, Istio, ArgoCD, and observability stack. Production-ready with security, networking, and GitOps.
 
@@ -17,8 +17,8 @@ Current Status: Production-ready (30 applications deployed and managed via GitOp
 
 ```bash
 # Clone and setup
-git clone https://github.com/vietcgi/kubernetes-platform-stack.git
-cd kubernetes-platform-stack
+git clone https://github.com/vietcgi/kind-gitops-platform.git
+cd kind-gitops-platform
 
 # Run deployment (--force recreates cluster if exists)
 ./deploy.sh --force
@@ -152,7 +152,7 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://github.com/vietcgi/kubernetes-platform-stack
+    repoURL: https://github.com/vietcgi/kind-gitops-platform
     targetRevision: main
     path: helm/my-new-app
   destination:
@@ -386,7 +386,7 @@ Adjust replica counts in helm/*/values.yaml if needed.
 
 For issues, see OPERATIONS.md troubleshooting section.
 
-For GitHub issues: https://github.com/vietcgi/kubernetes-platform-stack/issues
+For GitHub issues: https://github.com/vietcgi/kind-gitops-platform/issues
 
 ## License
 

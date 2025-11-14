@@ -14,8 +14,8 @@ kubeseal (optional, for managing secrets)
 
 Clone and setup:
 
-  git clone https://github.com/vietcgi/kubernetes-platform-stack.git
-  cd kubernetes-platform-stack
+  git clone https://github.com/vietcgi/kind-gitops-platform.git
+  cd kind-gitops-platform
 
 Run deployment:
 
@@ -116,7 +116,7 @@ Then create ArgoCD application:
   spec:
     project: default
     source:
-      repoURL: https://github.com/vietcgi/kubernetes-platform-stack
+      repoURL: https://github.com/vietcgi/kind-gitops-platform
       targetRevision: main
       path: helm/my-app
     destination:

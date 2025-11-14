@@ -14,7 +14,7 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://github.com/vietcgi/kubernetes-platform-stack
+    repoURL: https://github.com/vietcgi/kind-gitops-platform
     targetRevision: main
     path: manifests/network-policies
   destination:

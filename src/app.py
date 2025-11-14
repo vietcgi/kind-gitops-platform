@@ -16,7 +16,7 @@ logging.basicConfig(level=os.getenv('LOG_LEVEL', 'INFO'))
 logger = logging.getLogger(__name__)
 
 # Application info
-APP_NAME = "kubernetes-platform-stack"
+APP_NAME = "kind-gitops-platform"
 APP_VERSION = "1.0.0"
 ENVIRONMENT = os.getenv('ENVIRONMENT', 'unknown')
 
@@ -84,7 +84,7 @@ app_request_duration_seconds_bucket{le="1.0"} 100
 
 # HELP app_info Application info
 # TYPE app_info gauge
-app_info{app="kubernetes-platform-stack",version="1.0.0",environment="unknown"} 1
+app_info{app="kind-gitops-platform",version="1.0.0",environment="unknown"} 1
 """
     return metrics_data, 200, {'Content-Type': 'text/plain'}
 

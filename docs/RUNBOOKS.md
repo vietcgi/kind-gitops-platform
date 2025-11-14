@@ -507,7 +507,7 @@ Resolution:
 Check Git access:
   # Verify SSH key in ArgoCD
   argocd repo list
-  argocd repo get https://github.com/vietcgi/kubernetes-platform-stack
+  argocd repo get https://github.com/vietcgi/kind-gitops-platform
   
   # If SSH key invalid, update:
   argocd repo add <repo-url> --ssh-key-path ~/.ssh/id_rsa
