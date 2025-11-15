@@ -24,18 +24,33 @@ log_error() { echo -e "${RED}[ERROR]${NC} $1"; }
 setup_vault_init() {
     log_info "Initializing Vault..."
 
-    # Wait for Vault pod to be running
+    # Wait for Vault pod to be Running (but may not be Ready if not initialized yet)
     log_info "Waiting for Vault pod to be running..."
     for i in {1..60}; do
-        if kubectl get pod -n vault vault-0 2>/dev/null | grep -q "Running"; then
+        POD_STATUS=$(kubectl get pod -n vault vault-0 -o jsonpath='{.status.phase}' 2>/dev/null)
+        if [ "$POD_STATUS" = "Running" ]; then
             log_ok "Vault pod is running"
             break
         fi
         if [ $i -eq 60 ]; then
-            log_error "Vault pod failed to start"
+            log_error "Vault pod failed to start (status: $POD_STATUS)"
             return 1
         fi
         sleep 2
+    done
+
+    # Wait for pod to be fully accessible (can kubectl exec)
+    log_info "Waiting for Vault pod to be accessible..."
+    for i in {1..30}; do
+        if kubectl exec -n vault vault-0 -- vault status > /dev/null 2>&1; then
+            log_ok "Vault pod is accessible"
+            break
+        fi
+        if [ $i -eq 30 ]; then
+            log_error "Vault pod is not accessible"
+            return 1
+        fi
+        sleep 1
     done
 
     # Check if already initialized
