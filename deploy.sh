@@ -44,8 +44,22 @@ setup_vault_init() {
         sleep 2
     done
 
-    # Don't wait for HTTP - just try to initialize directly
-    # The vault CLI will work even during startup
+    # Wait for Vault HTTP API to be responding (this is critical!)
+    # Vault can be Running but the HTTP server may not be ready yet
+    log_info "Waiting for Vault HTTP API to be ready..."
+    for i in {1..60}; do
+        VAULT_STATUS=$(kubectl exec -n vault vault-0 -- vault status -format=json 2>/dev/null | jq -r '.initialized' 2>/dev/null)
+        if [ "$VAULT_STATUS" = "true" ] || [ "$VAULT_STATUS" = "false" ]; then
+            log_ok "Vault HTTP API is responding"
+            break
+        fi
+        if [ $i -eq 60 ]; then
+            log_error "Vault HTTP API failed to become ready after 120s"
+            return 1
+        fi
+        sleep 2
+    done
+
     log_info "Attempting Vault initialization (will skip if already initialized)..."
 
     # First, check if secret already exists (Vault was already initialized)
@@ -244,7 +258,7 @@ setup_vault_credentials() {
 
     # Wait for Vault to be accessible
     log_info "Waiting for Vault to be accessible..."
-    for i in {1..30}; do
+    for i in {1..60}; do
         if kubectl exec -n vault vault-0 -- env VAULT_TOKEN="$VAULT_TOKEN" vault status > /dev/null 2>&1; then
             log_ok "Vault is accessible"
             break
