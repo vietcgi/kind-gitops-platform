@@ -24,16 +24,32 @@ log_error() { echo -e "${RED}[ERROR]${NC} $1"; }
 setup_vault_auth() {
     log_info "Configuring Vault Kubernetes authentication..."
 
-    # Try to get root token from vault-unseal-keys secret
-    VAULT_TOKEN=$(kubectl get secret -n vault vault-unseal-keys -o jsonpath='{.data.token}' 2>/dev/null | base64 -d 2>/dev/null)
+    # Wait for vault-unseal-keys secret with timeout
+    log_info "Waiting for vault-unseal-keys secret to be created..."
+    VAULT_TOKEN=""
+    for i in {1..30}; do
+        # Try to get root token from vault-unseal-keys secret
+        VAULT_TOKEN=$(kubectl get secret -n vault vault-unseal-keys -o jsonpath='{.data.token}' 2>/dev/null | base64 -d 2>/dev/null)
 
-    # If token not found, try root_token key
-    if [ -z "$VAULT_TOKEN" ]; then
-        VAULT_TOKEN=$(kubectl get secret -n vault vault-unseal-keys -o jsonpath='{.data.root_token}' 2>/dev/null | base64 -d 2>/dev/null)
-    fi
+        # If token not found, try root_token key
+        if [ -z "$VAULT_TOKEN" ]; then
+            VAULT_TOKEN=$(kubectl get secret -n vault vault-unseal-keys -o jsonpath='{.data.root_token}' 2>/dev/null | base64 -d 2>/dev/null)
+        fi
+
+        # If found, break
+        if [ -n "$VAULT_TOKEN" ]; then
+            log_ok "Vault root token retrieved"
+            break
+        fi
+
+        if [ $i -lt 30 ]; then
+            sleep 1
+        fi
+    done
 
     # If still empty, try from environment inside Vault pod
     if [ -z "$VAULT_TOKEN" ]; then
+        log_warn "vault-unseal-keys secret not found, trying /vault/file/root_token inside pod..."
         VAULT_TOKEN=$(kubectl exec -n vault vault-0 -- cat /vault/file/root_token 2>/dev/null)
     fi
 
