@@ -7,9 +7,11 @@ resources:
   - argocd-cm.yaml
   - argocd-rbac-cm.yaml
   - argocd-cmd-params-cm.yaml
-  - argocd-server-patch.yaml
   # Uncomment after creating the sealed secret
   # - argocd-github-oauth-sealed-secret.yaml
+
+patchesStrategicMerge:
+  - argocd-server-patch.yaml
 
 sortOptions:
   order: fifo
