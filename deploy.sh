@@ -191,9 +191,11 @@ setup_vault_auth() {
 
     # Configure Kubernetes auth with cluster details
     log_info "Configuring Kubernetes auth connection..."
+    # Use the DNS-accessible Kubernetes API server address (not localhost)
+    # This is required for Vault to reach the tokenreview API from the pod
     kubectl exec -n vault vault-0 -- env VAULT_TOKEN="$VAULT_TOKEN" \
         sh -c 'vault write auth/kubernetes/config \
-        kubernetes_host="https://${KUBERNETES_SERVICE_HOST}:${KUBERNETES_SERVICE_PORT_HTTPS}" \
+        kubernetes_host="https://kubernetes.default.svc.cluster.local:443" \
         kubernetes_ca_cert=@/var/run/secrets/kubernetes.io/serviceaccount/ca.crt \
         token_reviewer_jwt=@/var/run/secrets/kubernetes.io/serviceaccount/token' > /dev/null 2>&1
     if [ $? -eq 0 ]; then
@@ -206,7 +208,10 @@ setup_vault_auth() {
     # Create policy for external-secrets
     log_info "Creating Vault policy for external-secrets..."
     kubectl exec -n vault vault-0 -- env VAULT_TOKEN="$VAULT_TOKEN" vault policy write external-secrets - > /dev/null 2>&1 << 'EOF'
-path "secret/data/demo/*" {
+path "secret/data/*" {
+  capabilities = ["read", "list"]
+}
+path "secret/metadata/*" {
   capabilities = ["read", "list"]
 }
 EOF
