@@ -92,6 +92,9 @@ argo-cd:
   configs:
     params:
       server.insecure: "true"
+      # When behind HTTP ingress, disable server TLS to avoid redirect loops
+      # The URL is http:// so TLS must be disabled
+      server.disable.tls: "true"
     secret:
       createSecret: true
     repositories: {}
