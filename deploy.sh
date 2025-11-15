@@ -248,6 +248,18 @@ kubectl wait deployment argocd-application-controller -n argocd --for=condition=
 log_info "Waiting for ArgoCD repo server..."
 kubectl wait deployment argocd-repo-server -n argocd --for=condition=Available --timeout=$STARTUP_TIMEOUT 2>/dev/null || true
 
+log_info "Waiting for Application CRD to be registered..."
+for i in {1..60}; do
+  if kubectl api-resources 2>/dev/null | grep -q "^applications"; then
+    log_ok "Application CRD is ready"
+    break
+  fi
+  if [ $((i % 10)) -eq 0 ]; then
+    log_info "Waiting for Application CRD... ($i/60)"
+  fi
+  sleep 1
+done
+
 echo ""
 echo "=============================================="
 echo "PHASE 3: Bootstrap GitOps"
