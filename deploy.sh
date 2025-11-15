@@ -110,29 +110,32 @@ setup_image_pull_secret() {
 
     log_info "Creating Kubernetes imagePullSecret for Docker authentication..."
 
-    # Create docker registry secret in default namespace
-    # This secret will be used by kubelet for all image pulls
-    kubectl create secret docker-registry dockerhub-auth \
-        --docker-server=docker.io \
-        --docker-username="$docker_username" \
-        --docker-password="$docker_password" \
-        --docker-email="automation@example.com" \
-        -n default \
-        --dry-run=client -o yaml | kubectl apply -f - 2>/dev/null
+    # Create docker registry secret in critical namespaces
+    # Secrets are namespace-scoped, so we need to create in each namespace where pods pull images
+    for namespace in default kube-system argocd external-secrets vault kyverno; do
+        # Create namespace if it doesn't exist (some may not be created yet)
+        kubectl create namespace "$namespace" --dry-run=client -o yaml | kubectl apply -f - 2>/dev/null
 
-    if [ $? -eq 0 ]; then
-        log_ok "Kubernetes imagePullSecret created in default namespace"
-    else
-        log_warn "Failed to create imagePullSecret (may not impact deployment)"
-    fi
+        # Create secret in namespace
+        kubectl create secret docker-registry dockerhub-auth \
+            --docker-server=docker.io \
+            --docker-username="$docker_username" \
+            --docker-password="$docker_password" \
+            --docker-email="automation@example.com" \
+            -n "$namespace" \
+            --dry-run=client -o yaml | kubectl apply -f - 2>/dev/null
 
-    # Also patch default service account to use the secret
-    # This allows pods without explicit imagePullSecrets to use credentials
-    kubectl patch serviceaccount default \
-        -p '{"imagePullSecrets": [{"name": "dockerhub-auth"}]}' \
-        -n default 2>/dev/null || true
+        if [ $? -eq 0 ]; then
+            log_ok "Kubernetes imagePullSecret created in $namespace namespace"
+        fi
 
-    log_ok "Image pull secret configuration complete"
+        # Patch default service account in each namespace to use the secret
+        kubectl patch serviceaccount default \
+            -p '{"imagePullSecrets": [{"name": "dockerhub-auth"}]}' \
+            -n "$namespace" 2>/dev/null || true
+    done
+
+    log_ok "Image pull secret configuration complete across all namespaces"
 }
 
 # Retry function with exponential backoff for handling rate limits (429 errors)
