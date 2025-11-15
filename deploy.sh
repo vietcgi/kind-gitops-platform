@@ -228,6 +228,11 @@ EOF
 
     # Create Kubernetes auth role for external-secrets
     log_info "Creating Kubernetes auth role for external-secrets..."
+    # Delete existing role first to ensure we have the audience parameter
+    # (existing roles from previous deployments may not have it)
+    kubectl exec -n vault vault-0 -- env VAULT_TOKEN="$VAULT_TOKEN" \
+        vault delete auth/kubernetes/role/external-secrets > /dev/null 2>&1 || true
+
     # Note: audience parameter is required in Vault v1.21+ but optional in v1.20
     # Setting it to empty string disables audience validation, allowing JWTs without specific audience claims
     kubectl exec -n vault vault-0 -- env VAULT_TOKEN="$VAULT_TOKEN" \
@@ -240,7 +245,8 @@ EOF
     if [ $? -eq 0 ]; then
         log_ok "Kubernetes auth role created"
     else
-        log_warn "Failed to create Kubernetes auth role (may already exist)"
+        log_error "Failed to create Kubernetes auth role"
+        return 1
     fi
 
     log_ok "Vault Kubernetes authentication configured successfully"
