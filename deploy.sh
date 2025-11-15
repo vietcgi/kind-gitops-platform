@@ -179,37 +179,51 @@ retry_with_backoff() {
 setup_vault_init() {
     log_info "Initializing Vault..."
 
-    # Disable Kyverno validation for Vault namespace (Vault has legitimate reasons to need root, IPC_LOCK, etc)
+    # Disable Kyverno validation for Vault namespace FIRST (before waiting for pod)
+    # Vault has legitimate reasons to need root, IPC_LOCK, privileged containers, etc
     log_info "Disabling Kyverno validation for Vault namespace..."
     kubectl label namespace vault kyverno.io/enforce=disable kyverno.io/audit=disable kyverno.io/background=disable --overwrite 2>/dev/null
     sleep 2
 
+    # Delete and recreate any pending vault-0 pods to apply Kyverno label
+    # This ensures new pods don't get blocked by Kyverno policies
+    if kubectl get pod -n vault vault-0 2>/dev/null | grep -q "vault-0"; then
+        log_info "Restarting Vault pod to bypass Kyverno policies..."
+        kubectl delete pod -n vault vault-0 --grace-period=10 2>/dev/null || true
+        sleep 3
+    fi
+
     # Wait for Vault pod to be Running (but may not be Ready if not initialized yet)
     log_info "Waiting for Vault pod to be running..."
-    for i in {1..60}; do
+    for i in {1..90}; do
         POD_STATUS=$(kubectl get pod -n vault vault-0 -o jsonpath='{.status.phase}' 2>/dev/null)
         if [ "$POD_STATUS" = "Running" ]; then
             log_ok "Vault pod is running"
             break
         fi
-        if [ $i -eq 60 ]; then
+        if [ $i -eq 90 ]; then
             log_error "Vault pod failed to start (status: $POD_STATUS)"
             return 1
         fi
         sleep 2
     done
 
+    # Give the pod a moment to fully initialize after coming up
+    sleep 5
+
     # Wait for Vault HTTP API to be responding (this is critical!)
     # Vault can be Running but the HTTP server may not be ready yet
     log_info "Waiting for Vault HTTP API to be ready..."
-    for i in {1..60}; do
+    for i in {1..120}; do
         VAULT_STATUS=$(kubectl exec -n vault vault-0 -- vault status -format=json 2>/dev/null | jq -r '.initialized' 2>/dev/null)
         if [ "$VAULT_STATUS" = "true" ] || [ "$VAULT_STATUS" = "false" ]; then
             log_ok "Vault HTTP API is responding"
             break
         fi
-        if [ $i -eq 60 ]; then
-            log_error "Vault HTTP API failed to become ready after 120s"
+        if [ $i -eq 120 ]; then
+            log_error "Vault HTTP API failed to become ready after 240s"
+            log_error "Vault pod logs:"
+            kubectl logs -n vault vault-0 --tail=20 2>/dev/null || true
             return 1
         fi
         sleep 2
