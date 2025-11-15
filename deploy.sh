@@ -20,6 +20,38 @@ log_ok() { echo -e "${GREEN}[✓]${NC} $1"; }
 log_warn() { echo -e "${YELLOW}[WARN]${NC} $1"; }
 log_error() { echo -e "${RED}[ERROR]${NC} $1"; }
 
+# Retry function with exponential backoff for handling rate limits (429 errors)
+# Usage: retry_with_backoff <max_attempts> <command>
+retry_with_backoff() {
+    local max_attempts=$1
+    shift
+    local attempt=1
+    local wait_time=1
+
+    while [ $attempt -le $max_attempts ]; do
+        # Run the command
+        "$@"
+        local exit_code=$?
+
+        # If successful, return
+        if [ $exit_code -eq 0 ]; then
+            return 0
+        fi
+
+        # Check if we should retry (rate limit or temporary error)
+        if [ $attempt -lt $max_attempts ]; then
+            log_warn "Attempt $attempt failed (exit code: $exit_code), retrying in ${wait_time}s..."
+            sleep $wait_time
+            wait_time=$((wait_time * 2))  # Exponential backoff: 1s, 2s, 4s, 8s, etc.
+        fi
+
+        attempt=$((attempt + 1))
+    done
+
+    log_error "Command failed after $max_attempts attempts"
+    return $exit_code
+}
+
 # Initialize and unseal Vault
 setup_vault_init() {
     log_info "Initializing Vault..."
@@ -431,7 +463,7 @@ log_info "Detecting control plane IP address..."
 CONTROL_PLANE_IP=$(kubectl get node "$CONTROL_PLANE_NODE" -o jsonpath='{.status.addresses[?(@.type=="InternalIP")].address}')
 log_info "Control plane IP: $CONTROL_PLANE_IP"
 
-helm upgrade --install cilium cilium/cilium \
+retry_with_backoff 3 helm upgrade --install cilium cilium/cilium \
   --namespace kube-system \
   --values "$SCRIPT_DIR/helm/cilium/values.yaml" \
   --version ${CILIUM_VERSION} \
@@ -517,7 +549,7 @@ if kubectl get deployment coredns -n kube-system &>/dev/null; then
     fi
 fi
 
-helm upgrade --install coredns coredns/coredns \
+retry_with_backoff 3 helm upgrade --install coredns coredns/coredns \
   --namespace kube-system \
   --values "$SCRIPT_DIR/helm/coredns/values.yaml" \
   --version 1.45.0 \
@@ -542,7 +574,7 @@ helm repo add argoproj https://argoproj.github.io/argo-helm
 helm repo update argoproj
 
 log_info "Installing ArgoCD using Helm with custom values..."
-helm upgrade --install argocd argoproj/argo-cd \
+retry_with_backoff 3 helm upgrade --install argocd argoproj/argo-cd \
   --namespace argocd \
   --values "$SCRIPT_DIR/helm/argocd/values.yaml" \
   --version 9.1.2 \
