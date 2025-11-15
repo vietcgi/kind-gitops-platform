@@ -228,10 +228,13 @@ EOF
 
     # Create Kubernetes auth role for external-secrets
     log_info "Creating Kubernetes auth role for external-secrets..."
+    # Note: audience parameter is required in Vault v1.21+ but optional in v1.20
+    # Setting it to empty string disables audience validation, allowing JWTs without specific audience claims
     kubectl exec -n vault vault-0 -- env VAULT_TOKEN="$VAULT_TOKEN" \
         vault write auth/kubernetes/role/external-secrets \
         bound_service_account_names=external-secrets-operator \
         bound_service_account_namespaces=external-secrets \
+        audience="" \
         policies=external-secrets \
         ttl=24h > /dev/null 2>&1
     if [ $? -eq 0 ]; then
