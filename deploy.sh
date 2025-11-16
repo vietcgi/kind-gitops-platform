@@ -442,7 +442,7 @@ EOF
     log_info "Restarting Vault pod to reload RBAC permissions..."
     kubectl delete pod -n vault vault-0 --force --grace-period=0 > /dev/null 2>&1
     log_info "Waiting for Vault pod to restart with new RBAC permissions..."
-    kubectl wait --for=condition=Ready=True pod/vault-0 -n vault --timeout=120s > /dev/null 2>&1
+    kubectl wait --for=condition=Ready=True pod/vault-0 -n vault --timeout=300s > /dev/null 2>&1
     if [ $? -eq 0 ]; then
         log_ok "Vault pod restarted with new RBAC permissions"
     else
