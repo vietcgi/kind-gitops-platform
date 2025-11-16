@@ -402,13 +402,12 @@ EOF
     kubectl exec -n vault vault-0 -- env VAULT_TOKEN="$VAULT_TOKEN" \
         vault delete auth/kubernetes/role/external-secrets > /dev/null 2>&1 || true
 
-    # Note: audience parameter is required in Vault v1.21+ but optional in v1.20
-    # Setting it to empty string disables audience validation, allowing JWTs without specific audience claims
+    # Note: For Vault v1.20 and earlier, omitting the audience parameter allows JWTs without audience claims
+    # For v1.21+, empty audience is deprecated; omitting it allows flexible JWT validation
     kubectl exec -n vault vault-0 -- env VAULT_TOKEN="$VAULT_TOKEN" \
         vault write auth/kubernetes/role/external-secrets \
         bound_service_account_names=external-secrets-operator \
         bound_service_account_namespaces=external-secrets \
-        audience="" \
         policies=external-secrets \
         ttl=24h > /dev/null 2>&1
     if [ $? -eq 0 ]; then
