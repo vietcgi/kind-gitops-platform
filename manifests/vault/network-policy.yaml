@@ -46,9 +46,15 @@ spec:
         protocol: UDP
       - port: "53"
         protocol: TCP
-  # Allow Kubernetes API server
+  # Allow Kubernetes API server (all ports needed by webhooks and clients)
   - toEntities:
     - kube-apiserver
+    toPorts:
+    - ports:
+      - port: "443"
+        protocol: TCP
+      - port: "6443"
+        protocol: TCP
 
 ---
 # Cilium Network Policy for External Secrets
@@ -85,3 +91,9 @@ spec:
   # Allow Kubernetes API server
   - toEntities:
     - kube-apiserver
+    toPorts:
+    - ports:
+      - port: "443"
+        protocol: TCP
+      - port: "6443"
+        protocol: TCP
