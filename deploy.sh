@@ -374,17 +374,26 @@ setup_vault_auth() {
     log_info "Configuring Kubernetes auth connection..."
     # Use the DNS-accessible Kubernetes API server address (not localhost)
     # This is required for Vault to reach the tokenreview API from the pod
-    kubectl exec -n vault vault-0 -- env VAULT_TOKEN="$VAULT_TOKEN" \
-        sh -c 'vault write auth/kubernetes/config \
-        kubernetes_host="https://kubernetes.default.svc.cluster.local:443" \
-        kubernetes_ca_cert=@/var/run/secrets/kubernetes.io/serviceaccount/ca.crt \
-        token_reviewer_jwt=@/var/run/secrets/kubernetes.io/serviceaccount/token' > /dev/null 2>&1
-    if [ $? -eq 0 ]; then
-        log_ok "Kubernetes auth connection configured"
-    else
-        log_error "Failed to configure Kubernetes auth connection"
-        return 1
-    fi
+    # Retry configuration up to 5 times with delay
+    for attempt in {1..5}; do
+        kubectl exec -n vault vault-0 -- env VAULT_TOKEN="$VAULT_TOKEN" \
+            sh -c 'vault write auth/kubernetes/config \
+            kubernetes_host="https://kubernetes.default.svc.cluster.local:443" \
+            kubernetes_ca_cert=@/var/run/secrets/kubernetes.io/serviceaccount/ca.crt \
+            token_reviewer_jwt=@/var/run/secrets/kubernetes.io/serviceaccount/token \
+            token_reviewer_jwt_period=60s' > /dev/null 2>&1
+        if [ $? -eq 0 ]; then
+            log_ok "Kubernetes auth connection configured"
+            break
+        fi
+        if [ $attempt -lt 5 ]; then
+            log_warn "Failed to configure Kubernetes auth (attempt $attempt/5), retrying..."
+            sleep 5
+        else
+            log_error "Failed to configure Kubernetes auth connection after 5 attempts"
+            return 1
+        fi
+    done
 
     # Create policy for external-secrets
     log_info "Creating Vault policy for external-secrets..."
@@ -425,6 +434,20 @@ EOF
     fi
 
     log_ok "Vault Kubernetes authentication configured successfully"
+
+    # CRITICAL: Restart Vault pod to reload service account permissions after RBAC binding is created
+    # The Vault pod caches its service account token at startup, including RBAC permissions.
+    # After creating the vault-token-reviewer RBAC binding, we must restart the pod to reload
+    # the token so it includes the new system:auth-delegator permissions needed for TokenReview API calls
+    log_info "Restarting Vault pod to reload RBAC permissions..."
+    kubectl delete pod -n vault vault-0 --force --grace-period=0 > /dev/null 2>&1
+    log_info "Waiting for Vault pod to restart with new RBAC permissions..."
+    kubectl wait --for=condition=Ready=True pod/vault-0 -n vault --timeout=120s > /dev/null 2>&1
+    if [ $? -eq 0 ]; then
+        log_ok "Vault pod restarted with new RBAC permissions"
+    else
+        log_warn "Vault pod restart may have timed out but continuing deployment"
+    fi
 }
 
 # Setup demo credentials in Vault
